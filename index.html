@@ -1,0 +1,3372 @@
+const currentDayX = cellW * (today + 1) + cellW / 2;>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>stunova. – Stundenplan</title>
+<style>
+    :root {
+        --bg: #f8fafc;
+        --card: #fff;
+        --text: #0f172a;
+        --muted: #475569;
+        --border: #e5e7eb;
+        --accent: #ef4444;
+        --row-h: 64px;
+        --left-col-w: 120px;
+        --shadow: 0 2px 6px rgba(0, 0, 0, .06), 0 10px 30px rgba(0, 0, 0, .06)
+    }
+
+    html,
+    body {
+        height: 100%
+    }
+
+    *,
+    :before,
+    :after {
+        box-sizing: border-box
+    }
+
+    body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        background: var(--bg);
+        color: var(--text)
+    }
+
+    [hidden] {
+        display: none !important
+    }
+
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 16px
+    }
+
+    header.sticky {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        backdrop-filter: blur(8px);
+        background: rgba(255, 255, 255, .7);
+        border-bottom: 1px solid var(--border)
+    }
+
+    .hstack {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 12px 0;
+        gap: 12px
+    }
+
+    h1 {
+        font-size: 20px;
+        margin: 0;
+        font-weight: 800;
+        letter-spacing: -.01em
+    }
+
+    .nav-island {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: center;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        box-shadow: var(--shadow);
+        padding: 6px;
+        margin: 8px auto;
+        width: max-content
+    }
+
+    .pill {
+        appearance: none;
+        border: 0;
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-size: 14px;
+        cursor: pointer;
+        background: #f1f5f9;
+        color: #0f172a
+    }
+
+    .pill:hover {
+        filter: brightness(.98)
+    }
+
+    .pill.primary {
+        background: #111827;
+        color: #fff
+    }
+
+    .btn {
+        appearance: none;
+        border: 0;
+        border-radius: 12px;
+        padding: 8px 12px;
+        font-size: 14px;
+        cursor: pointer
+    }
+
+    .btn.primary {
+        background: #111827;
+        color: #fff
+    }
+
+    .btn.ghost {
+        background: #e5e7eb;
+        color: #111827
+    }
+
+    .btn.danger {
+        background: #fee2e2;
+        color: #b91c1c
+    }
+
+    .btn.mini {
+        padding: 6px 10px;
+        font-size: 12px;
+        border-radius: 10px
+    }
+
+    .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: var(--shadow)
+    }
+
+    main {
+        padding: 12px 0 24px
+    }
+
+    footer {
+        padding: 24px 0 48px;
+        color: #64748b;
+        font-size: 12px
+    }
+
+    .layout {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 16px;
+        align-items: start
+    }
+
+    @media (max-width:1024px) {
+        .layout {
+            grid-template-columns: 1fr
+        }
+
+        .sidebar {
+            position: static
+        }
+    }
+
+    .grid-wrap {
+        position: relative;
+        overflow: hidden
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: var(--left-col-w) 1fr
+    }
+
+    .grid.has-days {
+        grid-template-columns: var(--left-col-w) repeat(var(--day-count), 1fr)
+    }
+
+    .grid .head {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: #f8fafc;
+        border-bottom: 1px solid var(--border);
+        padding: 12px;
+        font-weight: 700;
+        text-align: center
+    }
+
+    .grid .head.time {
+        text-align: left
+    }
+
+    .time-col {
+        position: relative
+    }
+
+    .time-cell {
+        height: var(--row-h);
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        justify-content: space-between;
+        padding: 6px 12px;
+        color: #64748b;
+        font-size: 14px;
+        border-bottom: 1px solid var(--border)
+    }
+
+    .day-col {
+        position: relative
+    }
+
+    .cell {
+        position: relative;
+        height: var(--row-h);
+        border-left: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+        background: #fff
+    }
+
+    .cell.over {
+        background: #fff1f2
+    }
+
+    .cell .add {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: #eef2f7;
+        color: #0f172a;
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+        font-size: 18px;
+        font-weight: 800;
+        z-index: 1;
+        transition: transform .08s ease, background .12s ease, box-shadow .12s ease
+    }
+
+    .cell .add:hover {
+        background: #e6edf7;
+        transform: translate(-50%, -50%) scale(1.04);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, .06)
+    }
+
+    .cell .add[hidden] {
+        display: none
+    }
+
+    .lesson {
+        position: absolute;
+        left: 8px;
+        right: 8px;
+        border-radius: 10px;
+        box-shadow: var(--shadow);
+        border: 1px solid rgba(0, 0, 0, .06);
+        padding: 12px 12px 24px;
+        cursor: grab;
+        user-select: none;
+        overflow: hidden;
+        z-index: 2;
+        background: var(--card)
+    }
+
+    .lesson .row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px
+    }
+
+    .lesson .subject {
+        font-size: 14px;
+        font-weight: 800;
+        line-height: 1.2
+    }
+
+    .lesson .sub {
+        font-size: 12px;
+        opacity: .9
+    }
+
+    .lesson .room {
+        font-size: 12px;
+        font-weight: 700;
+        opacity: .9
+    }
+
+    .lesson .footer {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 22px;
+        background: rgba(255, 255, 255, .55);
+        font-size: 11px;
+        color: #0f172a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-top: 1px solid rgba(0, 0, 0, .06);
+        backdrop-filter: saturate(1.4) blur(4px)
+    }
+
+    .lesson[data-span="1"] {
+        padding: 10px 10px 22px
+    }
+
+    .lesson[data-span="1"] .sub,
+    .lesson[data-span="1"] .room {
+        display: none
+    }
+
+    .resizer {
+        position: absolute;
+        left: 8px;
+        right: 8px;
+        bottom: 2px;
+        height: 10px;
+        cursor: ns-resize;
+        border-radius: 6px
+    }
+
+    .lesson .colorbar {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 6px;
+        border-top-left-radius: 16px;
+        border-bottom-left-radius: 16px;
+        background: currentColor;
+        opacity: .9;
+        z-index: 1
+    }
+
+    .lesson.dragging {
+        opacity: .9;
+        filter: saturate(1.05);
+        outline: 2px dashed rgba(0, 0, 0, .15);
+        outline-offset: -4px;
+        transform: scale(1.01)
+    }
+
+    .lesson.resizing {
+        cursor: ns-resize
+    }
+
+    .lesson.important {
+        background: #fef3c7 !important;
+        border: 2px solid #f59e0b !important;
+        box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3), var(--shadow) !important;
+    }
+
+    .lesson.important .colorbar {
+        background: #f59e0b !important;
+        opacity: 1;
+    }
+
+    /* Completed day column styling */
+    .day-col.completed {
+        background: rgba(34, 197, 94, 0.1) !important;
+        position: relative;
+    }
+
+    .day-col.completed::after {
+        content: '✓';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 48px;
+        font-weight: 900;
+        color: rgba(255, 255, 255, 0.8);
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        pointer-events: none;
+        z-index: 5;
+    }
+
+    .legend {
+        margin-top: 16px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        font-size: 12px;
+        color: #475569
+    }
+
+    .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #f1f5f9;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 4px 8px;
+        font-size: 12px
+    }
+
+    .current {
+        display: flex;
+        gap: 16px;
+        padding: 12px;
+        align-items: center
+    }
+
+    .current .title {
+        font-weight: 700
+    }
+
+    .progress {
+        height: 8px;
+        background: #f1f5f9;
+        border-radius: 999px;
+        overflow: hidden;
+        margin-top: 6px
+    }
+
+    .progress>div {
+        height: 100%;
+        background: var(--accent)
+    }
+
+    .redline {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--accent);
+        box-shadow: 0 0 0 1px rgba(239, 68, 68, .25);
+        pointer-events: auto
+    }
+
+    .redline-tip {
+        position: absolute;
+        transform: translate(-50%, -100%);
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 4px 8px;
+        font-size: 12px;
+        color: var(--accent);
+        box-shadow: var(--shadow);
+        white-space: nowrap;
+        pointer-events: none;
+        z-index: 20
+    }
+
+    .sidebar {
+        position: sticky;
+        top: 88px
+    }
+
+    .side-card {
+        padding: 12px
+    }
+
+    .accordion {
+        display: flex;
+        flex-direction: column;
+        gap: 10px
+    }
+
+    details {
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        padding: 8px
+    }
+
+    summary {
+        list-style: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-weight: 700
+    }
+
+    summary::-webkit-details-marker {
+        display: none
+    }
+
+    .side-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 8px
+    }
+
+    .side-row {
+        display: flex;
+        align-items: center;
+        gap: 8px
+    }
+
+    .side-row input {
+        flex: 1
+    }
+
+    .small {
+        font-size: 12px;
+        color: #64748b
+    }
+
+    .folders-wrap {
+        padding: 12px
+    }
+
+    .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px
+    }
+
+    .dropzone {
+        border: 2px dashed #cbd5e1;
+        border-radius: 16px;
+        padding: 20px;
+        text-align: center;
+        cursor: pointer;
+        background: #f8fafc
+    }
+
+    .dropzone.over {
+        background: #eef2ff;
+        border-color: #a5b4fc
+    }
+
+    .folders-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+        gap: 14px;
+        margin-top: 12px
+    }
+
+    .folder-card {
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 0 12px 12px;
+        box-shadow: var(--shadow);
+        position: relative
+    }
+
+    .folder-top {
+        height: 48px;
+        display: flex;
+        align-items: end;
+        gap: 10px;
+        padding-top: 8px
+    }
+
+    .folder-shape {
+        position: relative;
+        width: 48px;
+        height: 34px;
+        border-radius: 8px 8px 6px 6px;
+        background: #e2e8f0;
+        flex: 0 0 auto
+    }
+
+    .folder-tab {
+        position: absolute;
+        top: -10px;
+        left: 6px;
+        width: 18px;
+        height: 10px;
+        border-radius: 6px 6px 0 0;
+        background: rgba(0, 0, 0, .1)
+    }
+
+    .folder-name {
+        font-weight: 800;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap
+    }
+
+    .count-badge {
+        font-size: 12px;
+        background: #111827;
+        color: #fff;
+        padding: 2px 8px;
+        border-radius: 999px
+    }
+
+    .folder-actions {
+        display: flex;
+        gap: 6px;
+        margin-top: 10px
+    }
+
+    .drag-handle {
+        position: absolute;
+        right: 10px;
+        top: 10px;
+        font-size: 14px;
+        color: #64748b;
+        cursor: grab
+    }
+
+    .file-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 10px
+    }
+
+    .file-tile {
+        border: 1px dashed #e5e7eb;
+        border-radius: 12px;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        background: #fff
+    }
+
+    .file-ico {
+        width: 44px;
+        height: 56px;
+        border-radius: 6px;
+        position: relative;
+        background: #eef2f7;
+        display: grid;
+        place-items: center;
+        font-weight: 800
+    }
+
+    .file-ico::after {
+        content: "";
+        position: absolute;
+        right: 0;
+        top: 0;
+        border-left: 10px solid transparent;
+        border-bottom: 10px solid #d1d5db;
+        border-top-right-radius: 4px
+    }
+
+    .ext {
+        font-size: 12px;
+        background: #111827;
+        color: #fff;
+        border-radius: 999px;
+        padding: 2px 6px;
+        align-self: start
+    }
+
+    .file-name {
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis
+    }
+
+    .file-meta {
+        font-size: 12px;
+        color: #64748b
+    }
+
+    .tile-actions {
+        display: flex;
+        gap: 6px;
+        justify-content: flex-end
+    }
+
+    .settings-wrap {
+        padding: 12px
+    }
+
+    .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px
+    }
+
+    .field {
+        margin-top: 10px
+    }
+
+    .field label {
+        font-size: 13px;
+        font-weight: 600;
+        display: block
+    }
+
+    .field input,
+    .field select {
+        margin-top: 6px;
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        font-size: 14px;
+        background: #fff
+    }
+
+    .modal[aria-hidden="true"] {
+        display: none
+    }
+
+    .modal[aria-hidden="false"] {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, .3);
+        backdrop-filter: blur(4px)
+    }
+
+    .modal .dialog {
+        position: relative;
+        z-index: 2;
+        background: #fff;
+        border-radius: 16px;
+        padding: 28px 28px 24px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 6px 40px rgba(0, 0, 0, .25);
+        width: min(500px, 95%);
+        display: flex;
+        flex-direction: column;
+        gap: 18px
+    }
+
+    .modal .backdrop {
+        position: absolute;
+        inset: 0;
+        z-index: 1
+    }
+
+    .close-x {
+        position: absolute;
+        top: 10px;
+        right: 14px;
+        border: none;
+        background: none;
+        font-size: 22px;
+        cursor: pointer;
+        color: #475569
+    }
+
+    .modal .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px
+    }
+
+    .modal .field label {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 6px;
+        display: block
+    }
+
+    .modal input,
+    .modal select {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        font-size: 14px
+    }
+
+    .modal input[type="color"] {
+        height: 36px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        cursor: pointer;
+        padding: 0
+    }
+
+    #timePreview {
+        font-size: 13px;
+        color: #475569;
+        margin-top: -4px
+    }
+
+    .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 8px
+    }
+
+    .actions.split {
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px
+    }
+
+    .actions.split>*:first-child {
+        margin-right: auto
+    }
+
+    .modal .btn {
+        min-width: 90px;
+        font-weight: 600;
+        transition: background .15s ease, transform .1s ease
+    }
+
+    .modal .btn:hover {
+        transform: translateY(-1px)
+    }
+
+    .modal .btn.primary {
+        background: #111827;
+        color: #fff
+    }
+
+    .modal .btn.ghost {
+        background: #e5e7eb;
+        color: #111827
+    }
+
+    .modal .btn.danger {
+        background: #fee2e2;
+        color: #b91c1c
+    }
+
+    @media (max-width:480px) {
+        .modal .grid2 {
+            grid-template-columns: 1fr
+        }
+
+        .actions.split {
+            flex-direction: column;
+            align-items: stretch
+        }
+
+        .actions.split>*:first-child {
+            margin-right: 0
+        }
+    }
+
+    .container.wide {
+        max-width: 1480px;
+        margin: 0 auto;
+    }
+
+    .overview-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr;
+        gap: 16px
+    }
+
+    .overview-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 16px
+    }
+
+    @media (max-width:1200px) {
+        .overview-grid {
+            grid-template-columns: 1fr
+        }
+
+        .overview-row {
+            grid-template-columns: 1fr
+        }
+    }
+
+    .hero {
+        position: relative;
+        overflow: hidden;
+        padding: 18px;
+        border-radius: 16px;
+        background: radial-gradient(1200px 400px at -15% -40%, #e0f2fe 0, transparent 60%), linear-gradient(135deg, #f0f9ff, #f7fee7);
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow)
+    }
+
+    .hero h3 {
+        margin: 0 0 6px
+    }
+
+    .hero-sub {
+        color: var(--muted);
+        font-size: 13px
+    }
+
+    .hero .clock {
+        position: absolute;
+        right: 18px;
+        top: 18px;
+        font-weight: 800;
+        font-size: 28px;
+        color: #0f172a
+    }
+
+    .kpi {
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: #fff;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        box-shadow: var(--shadow)
+    }
+
+    .kpi .label {
+        color: var(--muted);
+        font-size: 12px
+    }
+
+    .kpi .value {
+        font-weight: 800;
+        font-size: 22px
+    }
+
+    .chart-card,
+    .list-card,
+    .timer-card {
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: var(--shadow)
+    }
+
+    .chart-title {
+        font-weight: 700;
+        margin-bottom: 6px
+    }
+
+    .chart-wrap {
+        width: 100%;
+        height: 220px
+    }
+
+    .mini-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px
+    }
+
+    .mini-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 8px 10px;
+        border: 1px dashed #e5e7eb;
+        border-radius: 10px
+    }
+
+    .meta {
+        font-size: 12px;
+        color: var(--muted);
+    }
+
+    .mini-item .meta {
+        color: var(--muted);
+        font-size: 12px
+    }
+
+    .timer-controls {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px
+    }
+
+    .timer-face {
+        font-size: 28px;
+        font-weight: 800
+    }
+
+    .badge {
+        background: #0f172a;
+        color: #fff;
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 12px
+    }
+
+    /* small utility for click affordance without changing your look */
+    .clickable {
+        cursor: pointer
+    }
+
+    .clickable:focus-visible {
+        outline: 2px solid #94a3b8;
+        outline-offset: 2px;
+    }
+
+    /* --- Übersicht layout tweaks --- */
+    .overview-grid .full-span {
+        grid-column: 1 / -1;
+    }
+
+    /* Big, centered Pomodoro */
+    .timer-card.big {
+        display: grid;
+        place-items: center;
+        gap: 10px;
+        padding: 22px;
+    }
+
+    /* Square Pomodoro, compact, right-aligned */
+    .timer-card.big.square {
+        aspect-ratio: 1 / 1;
+        width: 100%;
+        max-width: 360px;
+        /* was 420 */
+        padding: 16px;
+        /* tighter */
+        gap: 8px;
+        place-items: center;
+        justify-self: end;
+        /* push to the right within the grid */
+    }
+
+    /* compact digits */
+    .timer-face.xl {
+        /* keep class name, just tighten */
+        font-size: clamp(40px, 6.5vw, 68px);
+        /* was up to ~96px */
+        font-weight: 900;
+        line-height: 1.05;
+        letter-spacing: .01em;
+        text-align: center;
+        margin: 2px 0 4px;
+    }
+
+    /* slightly smaller buttons */
+    .btn.lg {
+        padding: 10px 14px;
+        font-size: 14px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: var(--shadow);
+    }
+
+    .btn-row {
+        gap: 8px;
+    }
+
+    .btn.lg .ico {
+        width: 16px;
+        height: 16px;
+    }
+
+    .timer-sub {
+        color: var(--muted);
+        font-size: 13px;
+        text-align: center;
+    }
+
+    /* XL buttons with icons */
+    .btn.xl {
+        padding: 12px 18px;
+        font-size: 16px;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: var(--shadow);
+    }
+
+    .btn.xl .ico {
+        width: 18px;
+        height: 18px;
+        display: inline-block;
+    }
+
+    .btn-row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    /* Keyboard focus (keeps your visual style) */
+    .clickable:focus-visible,
+    .btn:focus-visible {
+        outline: 2px solid #94a3b8;
+        outline-offset: 2px;
+    }
+
+    /* Keep muted meta utility (used in info & lists) */
+    .meta {
+        font-size: 12px;
+        color: var(--muted);
+    }
+
+    /* --- Übersicht: clean 2-column layout --- */
+    .ov-layout {
+        display: grid;
+        grid-template-columns: 3fr 2fr;
+        gap: 16px;
+        align-items: start;
+        margin-top: 14px;
+    }
+
+    /* KPI row */
+    .ov-kpis {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+    }
+
+    /* Charts block (two side-by-side) */
+    .ov-charts {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-top: 16px;
+    }
+
+    /* Lists block (two stacked for better scan) */
+    .ov-lists {
+        display: grid;
+        grid-template-rows: auto auto;
+        gap: 16px;
+        margin-top: 16px;
+    }
+
+    /* Right column wrapper (timer + optional space for future blocks) */
+    .ov-right {
+        display: grid;
+        gap: 16px;
+    }
+
+    /* Make timer compact & square on the right */
+    .timer-card.big.square {
+        aspect-ratio: 1 / 1;
+        width: 100%;
+        max-width: 360px;
+        padding: 16px;
+        gap: 8px;
+        place-items: center;
+        justify-self: center;
+    }
+
+    /* Unify card paddings a bit */
+    .kpi,
+    .chart-card,
+    .list-card,
+    .timer-card {
+        padding: 14px;
+    }
+
+    /* Dynamic chart height - will be set by JavaScript */
+    .chart-wrap {
+        min-height: 200px;
+        height: auto;
+    }
+
+    /* Heatmap tooltip */
+    .heatmap-tooltip {
+        position: absolute;
+        background: #1f2937;
+        color: #fff;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+        pointer-events: none;
+        opacity: 0;
+        transform: translateY(-4px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        white-space: nowrap;
+        max-width: 250px;
+    }
+
+    .heatmap-tooltip.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .heatmap-tooltip::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 5px solid transparent;
+        border-top-color: #1f2937;
+    }
+
+    /* Responsive: collapse to one column gracefully */
+    @media (max-width: 1200px) {
+        .ov-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .ov-right {
+            justify-items: center;
+        }
+
+        .timer-card.big.square {
+            justify-self: center;
+            max-width: none;
+        }
+
+        .ov-kpis,
+        .ov-charts {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .preset-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+    }
+
+    .preset-table th,
+    .preset-table td {
+        border-bottom: 1px solid var(--border);
+        padding: 6px 8px;
+        text-align: left;
+    }
+
+    .preset-row-actions {
+        display: flex;
+        gap: 6px;
+    }
+
+    .inline-input {
+        width: 100%;
+        padding: 6px 8px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #fff;
+        font-size: 14px;
+    }
+
+    .inline-color {
+        width: 42px;
+        height: 32px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+    }
+
+    /* Hero: kompakte Liste */
+    .hero-sub ul {
+        margin: 6px 0 0;
+        padding-left: 16px;
+    }
+
+    .hero-sub li {
+        margin: 2px 0;
+    }
+
+    /* Klickbarer Ordner mit Farbswatch (Square) */
+    .folder-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #0f172a;
+        color: #fff;
+        border-radius: 8px;
+        padding: 4px 8px;
+        font-size: 12px;
+        line-height: 1;
+        cursor: pointer;
+    }
+
+    .folder-chip .swatch {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        background: var(--col, #e2e8f0);
+    }
+
+    /* Container-Abstand über dem Grid */
+    .ov-hero-inline {
+        margin: 10px 0 14px;
+    }
+
+    /* Kompakte Card – nicht breit */
+    .hero-compact {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 16px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: #fff;
+        /* kein Verlauf mehr */
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow);
+        width: min(560px, 100%);
+        /* kompakt! */
+        margin: 0 auto;
+        /* horizontal zentrieren */
+    }
+
+    .hc-title {
+        font-weight: 800;
+        font-size: 18px;
+        margin: 0 0 4px 0;
+    }
+
+    .hc-meta {
+        font-size: 13px;
+        color: var(--muted);
+    }
+
+    /* Quadratischer Ordner-Button rechts */
+    .folder-tile {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: #fff;
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        transition: transform .15s ease;
+    }
+
+    .folder-tile:hover {
+        transform: scale(1.04);
+    }
+
+    .folder-tile .swatch {
+        width: 30px;
+        height: 20px;
+        border-radius: 6px;
+        background: var(--col, #e5e7eb);
+        position: relative;
+    }
+
+    .folder-tile .swatch::after {
+        content: "";
+        position: absolute;
+        left: 4px;
+        top: -6px;
+        width: 12px;
+        height: 6px;
+        border-radius: 4px 4px 0 0;
+        background: rgba(0, 0, 0, .16);
+    }
+
+    /* hide the big time in the hero */
+    #ovHeroClock {
+        display: none;
+    }
+</style>
+</head>
+
+<body>
+    <header class="sticky">
+        <div class="container">
+            <div class="hstack">
+                <h1>stunova.</h1>
+            </div>
+        </div>
+
+        <div class="container" style="display:flex;justify-content:center">
+            <div class="nav-island" role="tablist">
+                <button class="pill primary" id="navOverview" role="tab" aria-selected="true">Übersicht</button>
+                <button class="pill" id="navPlan" role="tab" aria-selected="false">Plan</button>
+                <button class="pill" id="navFolders" role="tab" aria-selected="false">Ordner</button>
+                <button class="pill" id="navSettings" role="tab" aria-selected="false">Einstellungen</button>
+            </div>
+        </div>
+
+        <!-- OVERVIEW Seite (breit) -->
+        <!-- OVERVIEW Seite (breit) -->
+        <div class="container wide" id="pageOverview">
+            <!-- HERO -->
+            <div id="ovHeroInline" class="ov-hero-inline"></div>
+
+            <!-- Two-column overview layout -->
+            <div class="ov-layout">
+                <!-- LEFT: KPIs -> Charts -> Lists -->
+                <div>
+                    <!-- KPIs -->
+                    <div class="ov-kpis">
+                        <div class="kpi clickable" id="kpiWeekBox" title="Zum Plan">
+                            <div class="label">Stunden diese Woche</div>
+                            <div id="kpiWeekLessons" class="value">–</div>
+                            <div class="meta" id="kpiWeekMinutes">–</div>
+                        </div>
+                        <div class="kpi clickable" id="kpiFreeBox" title="Zum Plan">
+                            <div class="label">Freie Blöcke heute</div>
+                            <div id="kpiFreeToday" class="value">–</div>
+                            <div class="meta" id="kpiBusyToday">–</div>
+                        </div>
+                        <div class="kpi clickable" id="kpiSubjectsBox" title="Zum Plan">
+                            <div class="label">Fächer insgesamt</div>
+                            <div id="kpiSubjects" class="value">–</div>
+                            <div class="meta"><span id="kpiFolders" class="badge clickable" title="Zu Ordnern">Ordner:
+                                    –</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts -->
+                    <div class="ov-charts">
+                        <div class="chart-card clickable" id="heatmapCard" title="Zum Plan">
+                            <div class="chart-title">Wöchentliche Auslastung (Heatmap)</div>
+                            <div id="heatmap" class="chart-wrap"></div>
+                        </div>
+                        <div class="chart-card clickable" id="barSubjectsCard" title="Zum Plan">
+                            <div class="chart-title">Fächer-Verteilung</div>
+                            <div id="barSubjects" class="chart-wrap"></div>
+                        </div>
+                    </div>
+
+                    <!-- Lists -->
+                    <div class="ov-lists">
+                        <div class="list-card clickable" id="todayCard" title="Zum Plan">
+                            <div class="chart-title">Heute</div>
+                            <div id="listToday" class="mini-list"></div>
+                        </div>
+                        <div class="list-card clickable" id="recentCard" title="Zu Ordnern">
+                            <div class="chart-title">Zuletzt hinzugefügt</div>
+                            <div id="listRecent" class="mini-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RIGHT: Timer -->
+                <div class="ov-right">
+                    <div class="timer-card big square" id="pomCard">
+                        <div id="pomFace" class="timer-face xl">25:00</div>
+                        <div class="btn-row">
+                            <button class="btn lg primary" id="pomToggle" aria-pressed="false" aria-label="Start/Pause">
+                                <span class="ico" aria-hidden="true" id="pomToggleIcon">
+                                    <svg viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M8 5v14l11-7z" />
+                                    </svg>
+                                </span>
+                                <span class="lbl" id="pomToggleLbl">Start</span>
+                            </button>
+                            <button class="btn lg danger" id="pomReset" aria-label="Reset">
+                                <span class="ico" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 6V3L8 7l4 4V8a6 6 0 11-6 6H4a8 8 0 108-8z" />
+                                    </svg>
+                                </span>
+                                Reset
+                            </button>
+                        </div>
+                        <div class="timer-sub" id="pomState">Fokus 25 • Pause 5</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="container" id="currentWrap"></div>
+    </header>
+
+    <main>
+        <!-- PLAN + rechte Datenleiste -->
+        <div class="container" id="pagePlan" hidden>
+            <div class="layout">
+                <div>
+                    <div class="card grid-wrap">
+                        <div id="grid" class="grid"></div>
+                    </div>
+                    <div class="legend">
+                        <span class="chip">Drag & Drop zum Verschieben</span>
+                        <span class="chip">Ecke ziehen, um Dauer zu ändern</span>
+                        <span class="chip">Klick für Info · Rechtsklick zum Bearbeiten</span>
+                        <span class="chip">+ in Zelle fügt Fach hinzu</span>
+                        <span class="chip" style="background:#fef3c7;border-color:#f59e0b;color:#92400e">⚠️ Wichtige
+                            Stunden (Prüfung/Klausur)</span>
+                    </div>
+                </div>
+
+                <!-- rechte Seitenleiste (Daten) -->
+                <aside class="sidebar">
+                    <div class="card side-card">
+                        <div class="small" style="margin-bottom:6px">Stammdaten (für Auswahl im Plan)</div>
+                        <div class="accordion" id="dataSidebar">
+                            <!-- gefüllt per JS mit <details> für Lehrkräfte / Räume / Fächer / Klassen -->
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+
+        <!-- FOLDER Seite -->
+        <div class="container" id="pageFolders" hidden>
+            <div class="card folders-wrap">
+                <div class="toolbar">
+                    <div class="dropzone" id="dropzone">
+                        <input id="fileInput" type="file" multiple hidden>
+                        <div><strong>Dateien hier ablegen</strong> oder klicken zum Auswählen</div>
+                        <div class="small">Unterstützt: TXT, MD, JSON, CODE, DOCX, PPTX, XLSX (PDF wird als Platzhalter
+                            gespeichert)</div>
+                    </div>
+                    <div>
+                        <button id="newFolderBtn" class="btn">Neuer Ordner</button>
+                        <button id="manageFoldersBtn" class="btn ghost">Ordner verwalten</button>
+                    </div>
+                </div>
+                <div id="foldersEmpty" class="small" style="padding:8px 0" hidden>Keine Ordner vorhanden.</div>
+                <div class="folders-grid" id="foldersGrid"></div>
+            </div>
+        </div>
+
+        <!-- SETTINGS Seite (Section, kein Modal) -->
+        <div class="container" id="pageSettings" hidden>
+            <div class="card settings-wrap">
+                <h3 style="margin:0 0 6px">Einstellungen</h3>
+                <div class="field"><label>Wochentage (kommagetrennt)</label><input id="daysInput"
+                        placeholder="Mo, Di, Mi, Do, Fr" /></div>
+                <div class="grid2">
+                    <div class="field"><label>Stundenlänge (Minuten)</label><input id="periodMinInput" type="number"
+                            min="15" max="120" /></div>
+                    <div class="field"><label>Anzahl Stunden</label><input id="periodCountInput" type="number" min="4"
+                            max="16" /></div>
+                </div>
+                <div class="field"><label>Pausenlänge zwischen Stunden (Minuten)</label><input id="breakMinInput"
+                        type="number" min="0" max="60" /></div>
+                <div class="actions" style="justify-content:flex-end"><button class="btn primary"
+                        id="saveSettings">Speichern</button></div>
+                <h3 style="margin:0 0 6px">Vorlagen & Farben</h3>
+                <div class="small">Lege Standardfarben pro Fach fest und optional Presets (Fach → Lehrer:in, Raum,
+                    Farbe). Beim Anlegen
+                    werden diese automatisch vorgeschlagen.</div>
+                <div id="presetManager"></div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="container">Made with ❤️ – lokal speicherbar, kein Server nötig.</footer>
+
+    <!-- LESSON INFO + EDIT (bestehende Modale bleiben) -->
+    <div class="modal" id="infoModal" aria-modal="true" aria-hidden="true">
+        <div class="backdrop" data-close></div>
+        <div class="dialog">
+            <button class="close-x" data-close aria-label="Schließen">×</button>
+            <h2>Fach-Info</h2>
+            <div id="infoColor" style="height:6px;border-radius:6px;margin:-2px 0 12px"></div>
+            <div class="field"><label>Fach</label>
+                <div id="iSubject" class="meta" style="font-size:14px;color:#0f172a;font-weight:700"></div>
+            </div>
+            <div class="grid2">
+                <div class="field"><label>Lehrer:in</label>
+                    <div id="iTeacher" class="meta"></div>
+                </div>
+                <div class="field"><label>Raum</label>
+                    <div id="iRoom" class="meta"></div>
+                </div>
+            </div>
+            <div class="grid2">
+                <div class="field"><label>Tag</label>
+                    <div id="iDay" class="meta"></div>
+                </div>
+                <div class="field"><label>Uhrzeit</label>
+                    <div id="iTime" class="meta"></div>
+                </div>
+            </div>
+            <div class="field"><label>Dauer</label>
+                <div id="iDuration" class="meta"></div>
+            </div>
+            <div class="field" id="iImportanceField" style="display:none">
+                <label>Status</label>
+                <div class="meta" style="color:#f59e0b;font-weight:600">⚠️ Wichtige Stunde (Prüfung/Klausur)</div>
+            </div>
+            <div class="actions split" style="margin-top:18px">
+                <button class="btn danger" id="infoDelete">Löschen</button>
+                <div><button class="btn ghost" data-close>Schließen</button><button class="btn primary"
+                        id="infoEdit">Bearbeiten</button></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="editModal" aria-modal="true" aria-hidden="true">
+        <div class="backdrop" data-close></div>
+        <div class="dialog">
+            <button class="close-x" data-close aria-label="Schließen">×</button>
+            <h2>Fach bearbeiten</h2>
+            <div class="field"><label>Fach</label><input id="fSubject" /></div>
+            <div class="grid2">
+                <div class="field"><label>Lehrer:in</label><select id="fTeacherSel"></select></div>
+                <div class="field"><label>Raum</label><input id="fRoom" list="roomList" /></div>
+            </div>
+            <datalist id="roomList"></datalist>
+            <div class="field">
+                <label>Farbe (aus Einstellungen)</label>
+                <div id="fColorSwatch"
+                    style="height:10px;border-radius:8px;border:1px solid var(--border);background:#60a5fa">
+                </div>
+            </div>
+            <div class="field">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                    <input type="checkbox" id="fImportance" style="margin:0">
+                    <span>Wichtig (Prüfung, Klausur, etc.)</span>
+                </label>
+            </div>
+            <div class="meta" id="timePreview"></div>
+            <div class="actions split">
+                <button class="btn danger" id="deleteLesson">Löschen</button>
+                <div><button class="btn ghost" data-close>Abbrechen</button><button class="btn primary"
+                        id="saveLesson">Speichern</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOLDER-Modal Trio (unverändert) -->
+    <div class="modal" id="foldersManageModal" aria-hidden="true">
+        <div class="backdrop" data-close></div>
+        <div class="dialog" style="width:min(720px,100%)">
+            <button class="close-x" data-close aria-label="Schließen">×</button>
+            <h2>Ordner verwalten & sortieren</h2>
+            <div class="small">Ziehe an den ⋮⋮ Griffen, um die Reihenfolge zu ändern. Klick auf einen Ordner zum
+                Bearbeiten.</div>
+            <div id="manageList" class="list" style="margin-top:8px"></div>
+            <div class="actions"><button class="btn ghost" data-close>Fertig</button></div>
+        </div>
+    </div>
+
+    <div class="modal" id="folderEditModal" aria-hidden="true">
+        <div class="backdrop" data-close></div>
+        <div class="dialog">
+            <button class="close-x" data-close aria-label="Schließen">×</button>
+            <h2 id="folderEditTitle">Ordner bearbeiten</h2>
+            <div class="field"><label>Name</label><input id="folderNameInput" /></div>
+            <div class="field"><label>Farbe</label><input id="folderColorInput" type="color" /></div>
+            <div class="actions split"><button id="folderDeleteBtn" class="btn danger">Ordner löschen</button>
+                <div><button class="btn ghost" data-close>Abbrechen</button><button id="folderSaveBtn"
+                        class="btn primary">Speichern</button></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="folderDetailModal" aria-hidden="true">
+        <div class="backdrop" data-close></div>
+        <div class="dialog" style="width:min(820px,100%)">
+            <button class="close-x" data-close aria-label="Schließen">×</button>
+            <h2 id="folderDetailTitle">Ordner</h2>
+            <div id="folderDetailGrid" class="file-grid"></div>
+            <div class="actions"><button class="btn ghost" data-close>Schließen</button></div>
+        </div>
+    </div>
+
+    <script>
+        /* =================== TYPES / STATE =================== */
+        /** @typedef {{id:string,subject:string,teacher?:string,room?:string,color?:string,day:number,startIndex:number,span:number,importance?:boolean}} Lesson */
+        const defaultDays = ["Mo", "Di", "Mi", "Do", "Fr"];
+        const dayStart = { h: 8, m: 0 };
+        const periodMinutesDefault = 45, breakMinutesDefault = 5;
+        const colors = ["#60a5fa", "#f472b6", "#34d399", "#f59e0b", "#a78bfa", "#fb7185", "#22d3ee", "#fca5a5"];
+        const LS_PLAN = "custom_timetable_state_v1_vanilla";
+        const LS_FOLDERS = "custom_timetable_folders_v1";
+        const LS_DATA = "custom_timetable_masterdata_v1";
+
+        const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+        const pad = n => String(n).padStart(2, "0");
+        const timeLabelFromMinutes = (base, plus) => { const total = base.h * 60 + base.m + plus; const h = Math.floor(total / 60); const m = total % 60; return `${pad(h)}:${pad(m)}` };
+        const minutesSinceStart = (date = new Date()) => { const d = new Date(date); const start = new Date(date); start.setHours(dayStart.h, dayStart.m, 0, 0); return (d - start) / 60000 };
+        const uid = () => (crypto && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+        const byId = id => document.getElementById(id);
+
+        const state = { days: [...defaultDays], periodMinutes: periodMinutesDefault, breakMinutes: breakMinutesDefault, periodCount: 10, lessons/** @type {Lesson[]}*/: [] };
+        // + subjectColors map and presets
+        const dataState = {
+            teachers/** @type {string[]}*/: [],
+            rooms/** @type {string[]}*/: [],
+            subjects/** @type {string[]}*/: [],
+            classes/** @type {string[]}*/: [],
+            subjectColors/** @type {Record<string,string>}*/: {},      // e.g. { Mathe: "#60a5fa" }
+            presets/** @type {Array<{subject:string,teacher?:string,room?:string,color?:string}>}*/: []
+        };
+
+        const folderState = { folders/** @type {Array<{id:string,name:string,color:string,items:Array<{id:string,name:string,topic:string,grade:number,notes?:string,added:string,ext:string}>}>}*/: [] };
+        const fColorSwatch = byId('fColorSwatch');
+        let isCreating = false;
+        let creatingDraft = null;
+        /* =================== LOAD / SAVE =================== */
+        function seedLessons() {
+            return [
+                { id: uid(), subject: "Mathe", teacher: "Müller", room: "A101", color: colors[0], day: 0, startIndex: 0, span: 2 },
+                { id: uid(), subject: "Deutsch", teacher: "Schmidt", room: "B204", color: colors[1], day: 2, startIndex: 3, span: 1 },
+                { id: uid(), subject: "Englisch", teacher: "Khan", room: "C3", color: colors[2], day: 4, startIndex: 5, span: 2 }
+            ];
+        }
+        function colorForSubject(subj) {
+            const s = (subj || '').trim();
+            if (!s) return '#60a5fa';
+            const p = findPresetForSubject(s);
+            return (p && p.color) || (dataState.subjectColors && dataState.subjectColors[s]) || '#60a5fa';
+        }
+        function seedFolders() {
+            return [
+                { id: uid(), name: "Mathe", color: "#60a5fa", items: [] },
+                { id: uid(), name: "Deutsch", color: "#f472b6", items: [] },
+                { id: uid(), name: "Informatik", color: "#34d399", items: [] },
+                { id: uid(), name: "Allgemein", color: "#a78bfa", items: [] }
+            ];
+        }
+        function seedData() {
+            const d = {
+                teachers: ["Müller", "Schmidt", "Khan"],
+                rooms: ["A101", "B204", "C3"],
+                subjects: ["Mathe", "Deutsch", "Englisch", "Informatik"],
+                classes: ["8A", "8B"],
+                subjectColors: { Mathe: "#60a5fa", Deutsch: "#f472b6", Englisch: "#34d399", Informatik: "#a78bfa" },
+                presets: [
+                    { subject: "Mathe", teacher: "Müller", room: "A101", color: "#60a5fa" },
+                    { subject: "Deutsch", teacher: "Schmidt", room: "B204", color: "#f472b6" },
+                    { subject: "Englisch", teacher: "Khan", room: "C3", color: "#34d399" }
+                ]
+            };
+            return d;
+        }
+
+        function loadAll() {
+            try {
+                const r = localStorage.getItem(LS_PLAN);
+                if (r) {
+                    const o = JSON.parse(r); state.days = Array.isArray(o.days) && o.days.length ? o.days : defaultDays;
+                    state.periodMinutes = Number(o.periodMinutes) || periodMinutesDefault;
+                    state.breakMinutes = Number(o.breakMinutes) >= 0 ? Number(o.breakMinutes) : breakMinutesDefault;
+                    state.periodCount = Number(o.periodCount) || 10;
+                    state.lessons = Array.isArray(o.lessons) && o.lessons.length ? o.lessons : seedLessons();
+                } else state.lessons = seedLessons();
+            } catch { state.lessons = seedLessons(); }
+
+            try { const d = localStorage.getItem(LS_DATA); Object.assign(dataState, d ? JSON.parse(d) : seedData()); }
+            catch { Object.assign(dataState, seedData()); }
+
+            try { const f = localStorage.getItem(LS_FOLDERS); folderState.folders = f ? JSON.parse(f) : seedFolders(); }
+            catch { folderState.folders = seedFolders(); }
+        }
+        function savePlan() { try { localStorage.setItem(LS_PLAN, JSON.stringify(state)); } catch { } }
+        function saveData() { try { localStorage.setItem(LS_DATA, JSON.stringify(dataState)); } catch { } }
+        function saveFolders() { try { localStorage.setItem(LS_FOLDERS, JSON.stringify(folderState.folders)); } catch { } }
+
+        /* =================== NAV =================== */
+        const pageOverview = byId('pageOverview'),
+            pagePlan = byId('pagePlan'),
+            pageFolders = byId('pageFolders'),
+            pageSettings = byId('pageSettings');
+
+        function activatePill(btn) {
+            document.querySelectorAll('.nav-island .pill').forEach(p => p.classList.remove('primary'));
+            btn.classList.add('primary');
+        }
+
+        byId('navOverview')?.addEventListener('click', e => {
+            activatePill(e.target);
+            pageOverview.hidden = false;
+            pagePlan.hidden = true;
+            pageFolders.hidden = true;
+            pageSettings.hidden = true;
+            renderOverview();
+        });
+
+        byId('navPlan')?.addEventListener('click', e => {
+            activatePill(e.target);
+            pageOverview.hidden = true;
+            pagePlan.hidden = false;
+            pageFolders.hidden = true;
+            pageSettings.hidden = true;
+        });
+
+        byId('navFolders')?.addEventListener('click', e => {
+            activatePill(e.target);
+            pageOverview.hidden = true;
+            pagePlan.hidden = true;
+            pageFolders.hidden = false;
+            pageSettings.hidden = true;
+            renderFolders();
+        });
+
+        byId('navSettings')?.addEventListener('click', e => {
+            activatePill(e.target);
+            pageOverview.hidden = true;
+            pagePlan.hidden = true;
+            pageFolders.hidden = true;
+            pageSettings.hidden = false;
+            // fülle Settings Felder
+            daysInput.value = state.days.join(', ');
+            periodMinInput.value = String(state.periodMinutes);
+            periodCountInput.value = String(state.periodCount);
+            breakMinInput.value = String(state.breakMinutes);
+            renderPresetManager();
+        });
+        function findPresetForSubject(subj) {
+            const s = (subj || '').trim();
+            if (!s) return null;
+            // exact match first, then case-insensitive
+            let p = (dataState.presets || []).find(x => x.subject === s);
+            if (!p) p = (dataState.presets || []).find(x => (x.subject || '').toLowerCase() === s.toLowerCase());
+            return p || null;
+        }
+        /* =================== PLAN (grid etc.) =================== */
+        const gridEl = byId('grid'); const currentWrap = byId('currentWrap'); let redlineTip = null; let isResizing = false;
+
+        function generatePeriods() {
+            const block = state.periodMinutes + state.breakMinutes;
+            return Array.from({ length: state.periodCount }, (_, i) => {
+                const startMin = i * block; const endMin = startMin + state.periodMinutes;
+                return { startMin, endMin, startLabel: timeLabelFromMinutes(dayStart, startMin), endLabel: timeLabelFromMinutes(dayStart, endMin) };
+            });
+        }
+        function renderGrid() {
+            gridEl.innerHTML = ''; gridEl.style.setProperty('--day-count', state.days.length); gridEl.classList.add('has-days');
+            gridEl.appendChild(div('head time', 'Zeit')); state.days.forEach(d => gridEl.appendChild(div('head', d)));
+
+            const periods = generatePeriods();
+            const timeCol = div('time-col');
+            periods.forEach(p => {
+                const cell = div('time-cell'); const top = document.createElement('div'); top.textContent = p.startLabel;
+                const bottom = document.createElement('div'); bottom.textContent = p.endLabel; bottom.style.fontSize = '12px'; bottom.style.opacity = '.9';
+                cell.append(top, bottom); timeCol.appendChild(cell);
+            });
+            gridEl.appendChild(timeCol);
+
+            if (!redlineTip) { redlineTip = document.createElement('div'); redlineTip.className = 'redline-tip'; redlineTip.hidden = true; gridEl.parentElement.appendChild(redlineTip); }
+
+            const currentTime = new Date();
+            const today = (currentTime.getDay() + 6) % 7; // Mo=0
+            const nowMin = minutesSinceStart(currentTime);
+            const block = state.periodMinutes + state.breakMinutes;
+
+            state.days.forEach((_, dayIndex) => {
+                const dayCol = div('day-col');
+
+                const dayLessons = state.lessons.filter(l => l.day === dayIndex);
+                const allLessonsFinishedForDay = dayLessons.every(l => {
+                    const lessonEnd = (l.startIndex * block) + (l.span * state.periodMinutes);
+                    return nowMin > lessonEnd;
+                });
+
+                let shouldMarkCompleted = false;
+
+                if (dayIndex === today) {
+                    // For today: mark if there are lessons and at least one is ongoing/future
+                    if (dayLessons.length > 0 && !allLessonsFinishedForDay) {
+                        shouldMarkCompleted = true;
+                    }
+                } else if (dayIndex < today) {
+                    // For past days: mark if there were lessons and all are finished
+                    if (dayLessons.length > 0 && allLessonsFinishedForDay) {
+                        shouldMarkCompleted = true;
+                    }
+                }
+                // Future days (dayIndex > today) are never marked.
+
+                if (shouldMarkCompleted) {
+                    dayCol.classList.add('completed');
+                }
+
+                const occ = new Set(); state.lessons.filter(l => l.day === dayIndex).forEach(l => { for (let i = 0; i < l.span; i++)occ.add(l.startIndex + i); });
+                periods.forEach((_, pIdx) => {
+                    const cell = div('cell'); cell.dataset.day = String(dayIndex); cell.dataset.period = String(pIdx);
+                    const add = document.createElement('button'); add.className = 'add'; add.title = 'Fach hinzufügen'; add.textContent = '+';
+                    if (occ.has(pIdx)) add.hidden = true;
+                    add.addEventListener('click', e => { e.stopPropagation(); openCreate(dayIndex, pIdx); });
+                    cell.appendChild(add);
+
+                    cell.addEventListener('dragover', e => { e.preventDefault(); cell.classList.add('over'); });
+                    cell.addEventListener('dragleave', () => cell.classList.remove('over'));
+                    cell.addEventListener('drop', e => {
+                        e.preventDefault(); cell.classList.remove('over');
+                        const id = e.dataTransfer?.getData('text/plain'); if (!id) return;
+                        const idx = state.lessons.findIndex(l => l.id === id); if (idx < 0) return;
+                        const l = { ...state.lessons[idx] }; l.day = dayIndex; l.startIndex = clamp(pIdx, 0, state.periodCount - 1); l.span = Math.min(l.span, state.periodCount - l.startIndex);
+                        const next = [...state.lessons]; next[idx] = l; state.lessons = resolveCollisions(next, state.periodCount); savePlan(); renderGrid();
+                    });
+                    dayCol.appendChild(cell);
+                });
+
+                state.lessons.filter(l => l.day === dayIndex).forEach(l => dayCol.appendChild(renderLesson(l)));
+
+                // red line
+                const now = new Date(); const weekday = ((now.getDay() + 6) % 7); const withinDay = minutesSinceStart(now);
+                const totalSpan = state.periodCount * (state.periodMinutes + state.breakMinutes);
+                const showRed = weekday < state.days.length && withinDay >= 0 && withinDay <= totalSpan;
+                if (showRed && weekday === dayIndex) {
+                    const rowH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--row-h'));
+                    const block = state.periodMinutes + state.breakMinutes;
+                    const top = clamp((withinDay / block) * rowH, 0, state.periodCount * rowH);
+                    const rl = div('redline'); rl.style.top = top + 'px'; dayCol.appendChild(rl);
+                    const updateTipText = () => { const now2 = new Date(); redlineTip.textContent = now2.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }); };
+                    rl.addEventListener('mouseenter', () => { updateTipText(); redlineTip.hidden = false; const rect = dayCol.getBoundingClientRect(); redlineTip.style.left = (rect.left + rect.width / 2 + window.scrollX) + 'px'; redlineTip.style.top = (rl.getBoundingClientRect().top + window.scrollY - 6) + 'px'; });
+                    rl.addEventListener('mousemove', () => { updateTipText(); const rect = dayCol.getBoundingClientRect(); redlineTip.style.left = (rect.left + rect.width / 2 + window.scrollX) + 'px'; redlineTip.style.top = (rl.getBoundingClientRect().top + window.scrollY - 6) + 'px'; });
+                    rl.addEventListener('mouseleave', () => redlineTip.hidden = true);
+                }
+                gridEl.appendChild(dayCol);
+            });
+        }
+        function renderLesson(lesson) {
+            const rowH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--row-h'));
+            const el = div('lesson'); el.style.top = (lesson.startIndex * rowH + 2) + 'px'; el.style.height = (lesson.span * rowH - 8) + 'px'; el.style.color = lesson.color || '#60a5fa';
+            el.setAttribute('data-span', String(lesson.span)); el.title = `${lesson.subject} (${lesson.span}×)`; el.draggable = true;
+
+            // Add importance class if lesson is marked as important
+            if (lesson.importance) {
+                el.classList.add('important');
+            }
+
+            el.addEventListener('dragstart', (e) => {
+                if (el.classList.contains('resizing')) { e.preventDefault(); return; }
+                e.dataTransfer?.setData('text/plain', lesson.id); el.classList.add('dragging');
+                const g = el.cloneNode(true); g.style.width = (el.getBoundingClientRect().width) + 'px'; g.style.height = (el.getBoundingClientRect().height) + 'px';
+                g.style.position = 'absolute'; g.style.top = '-1000px'; g.style.left = '-1000px'; g.style.transform = 'none'; g.classList.remove('dragging'); g.style.opacity = '1'; g.style.boxShadow = '0 6px 24px rgba(0,0,0,.12)';
+                document.body.appendChild(g); e.dataTransfer.setDragImage(g, 20, 20); setTimeout(() => document.body.removeChild(g), 0);
+            });
+            el.addEventListener('dragend', () => el.classList.remove('dragging'));
+            el.addEventListener('click', () => { if (el.classList.contains('resizing')) return; openInfo(lesson.id); });
+            el.addEventListener('contextmenu', (e) => { e.preventDefault(); if (el.classList.contains('resizing')) return; openEdit(lesson.id); });
+
+            const row = div('row'); const left = div(); const subj = div('subject', lesson.subject); const sub = div('sub', lesson.teacher || ''); left.append(subj, sub);
+            const room = div('room', lesson.room || ''); row.append(left, room);
+            const block = state.periodMinutes + state.breakMinutes;
+            const endLabel = timeLabelFromMinutes(dayStart, (lesson.startIndex * block) + (lesson.span * state.periodMinutes));
+            const footer = div('footer', `${endLabel}`);
+            const colorbar = div('colorbar'); const resizer = div('resizer');
+            let resizing = false; let draftSpan = lesson.span;
+
+            function maxEndIndexForResize(base) { const nextStart = state.lessons.filter(l => l.day === base.day && l.id !== base.id && l.startIndex >= base.startIndex).reduce((min, l) => Math.min(min, l.startIndex), state.periodCount); return nextStart; }
+            const onMove = (ev) => {
+                if (!resizing) return; const parent = el.parentElement; if (!parent) return; const rect = parent.getBoundingClientRect();
+                const y = ev.clientY - rect.top; const rawEnd = Math.ceil((y - 2) / rowH); const maxEnd = maxEndIndexForResize(lesson); const endIndex = clamp(rawEnd, lesson.startIndex + 1, maxEnd);
+                const newSpan = endIndex - lesson.startIndex; if (newSpan !== draftSpan) { draftSpan = newSpan; el.style.height = (draftSpan * rowH - 8) + 'px'; footer.textContent = timeLabelFromMinutes(dayStart, (lesson.startIndex * block) + (draftSpan * state.periodMinutes)); updatePlusButtonsDuringResize(parent, lesson.startIndex, draftSpan); }
+            };
+            const onUp = () => {
+                if (!resizing) return; resizing = false; isResizing = false; window.removeEventListener('mousemove', onMove); el.classList.remove('resizing'); el.draggable = true; document.body.style.userSelect = '';
+                const updated = { ...lesson, span: draftSpan }; state.lessons = resolveCollisions(state.lessons.map(l => l.id === lesson.id ? updated : l), state.periodCount); savePlan(); renderGrid();
+            };
+            resizer.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); resizing = true; draftSpan = lesson.span; isResizing = true; el.classList.add('resizing'); el.draggable = false; document.body.style.userSelect = 'none'; window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp, { once: true }); });
+            el.append(colorbar, row, footer, resizer); return el;
+        }
+        function updatePlusButtonsDuringResize(dayCol, startIndex, span) { const cells = [...dayCol.querySelectorAll('.cell')]; cells.forEach(c => { const btn = c.querySelector('.add'); if (btn) btn.hidden = false; }); for (let i = 0; i < span; i++) { const c = dayCol.querySelector(`.cell[data-period="${startIndex + i}"] .add`); if (c) c.hidden = true; } }
+        function formatRange(l) { const block = state.periodMinutes + state.breakMinutes; const startMin = l.startIndex * block; const endMin = startMin + l.span * state.periodMinutes; return `${timeLabelFromMinutes(dayStart, startMin)}–${timeLabelFromMinutes(dayStart, endMin)}`; }
+        function hasOverlap(occ, day, start, span) { for (let i = 0; i < span; i++) if (occ.has(`${day}:${start + i}`)) return true; return false; }
+        function occupiedSet(occ, day, start, span, l) { for (let i = 0; i < span; i++) occ.set(`${day}:${start + i}`, l); }
+        function resolveCollisions(list, maxPeriods) { const arr = [...list].sort((a, b) => a.startIndex - b.startIndex); const occ = new Map(); for (const l of arr) { let s = l.startIndex; while (hasOverlap(occ, l.day, s, l.span)) s = Math.min(s + 1, maxPeriods - l.span); l.startIndex = s; occupiedSet(occ, l.day, s, l.span, l); } return [...arr]; }
+
+        function currentLessonInfo() { const now = new Date(); const weekday = ((now.getDay() + 6) % 7); const nowMin = minutesSinceStart(now); const block = state.periodMinutes + state.breakMinutes; const cand = state.lessons.filter(l => l.day === weekday); for (const l of cand) { const start = l.startIndex * block; const end = start + (l.span * state.periodMinutes); if (nowMin >= start && nowMin <= end) { const elapsed = Math.floor(nowMin - start); const total = end - start; return { l, elapsed, total, now }; } } return null; }
+        function renderCurrent() {
+            const info = currentLessonInfo(); currentWrap.innerHTML = ''; if (!info) { currentWrap.innerHTML = '<div class="meta" style="padding-bottom:12px">Der rote Zeit-Strich zeigt die aktuelle Uhrzeit an.</div>'; return; }
+            const box = div('card current'); const label = div(null, '<span style="font-weight:600;font-size:13px">Gerade:</span>'); label.style.flexShrink = '0';
+            const content = div(); content.style.flex = '1'; const title = div('title', `${info.l.subject} <span style="color:#64748b;font-weight:600;font-size:13px">${formatRange(info.l)}</span>`);
+            const bar = div('progress'); const fill = div(); fill.style.width = ((info.elapsed / info.total) * 100) + '%'; bar.append(fill);
+            const meta = div('meta', `${info.elapsed} / ${info.total} Min · Raum ${info.l.room || '-'} · ${info.l.teacher || ''}`);
+            content.append(title, bar, meta); const right = div('meta'); right.innerHTML = `${info.now.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: '2-digit', day: '2-digit' })}<div style="font-size:18px;font-weight:800;color:#0f172a">${info.now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>`;
+            box.append(label, content, right); currentWrap.appendChild(box);
+        }
+
+        /* INFO / EDIT / CREATE */
+        const infoModal = byId('infoModal'); const iSubject = byId('iSubject'); const iTeacher = byId('iTeacher'); const iRoom = byId('iRoom'); const iDay = byId('iDay'); const iTime = byId('iTime'); const iDuration = byId('iDuration'); const infoColor = byId('infoColor'); const infoEditBtn = byId('infoEdit'); const infoDeleteBtn = byId('infoDelete'); let infoId = null;
+        function openInfo(id) {
+            const l = state.lessons.find(x => x.id === id); if (!l) return; infoId = id; iSubject.textContent = l.subject || '—'; iTeacher.textContent = l.teacher || '—'; iRoom.textContent = l.room || '—'; iDay.textContent = state.days[l.day] ?? `Tag ${l.day + 1}`; iTime.textContent = formatRange(l); const totalMin = l.span * state.periodMinutes; iDuration.textContent = `${totalMin} Min (${l.span} × ${state.periodMinutes} Min)`; infoColor.style.background = l.color || '#e5e7eb';
+
+            // Show/hide importance field
+            const importanceField = byId('iImportanceField');
+            if (l.importance) {
+                importanceField.style.display = 'block';
+            } else {
+                importanceField.style.display = 'none';
+            }
+
+            showModal(infoModal, '[data-close]');
+        }
+        infoEditBtn.addEventListener('click', () => { if (!infoId) return; hideModal(infoModal); openEdit(infoId); });
+        infoDeleteBtn.addEventListener('click', () => { if (!infoId) return; const id = infoId; infoId = null; removeLesson(id); });
+
+        const editModal = byId('editModal'); const fSubject = byId('fSubject'); const fTeacherSel = byId('fTeacherSel'); const fRoom = byId('fRoom'); const fColor = byId('fColor'); const timePreview = byId('timePreview'); const roomList = byId('roomList'); let editId = null;
+        function renderTeacherSelect(selected) {
+            fTeacherSel.innerHTML = ''; const optNone = document.createElement('option'); optNone.value = ''; optNone.textContent = '— (keine Auswahl)'; fTeacherSel.appendChild(optNone);
+            dataState.teachers.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; if (selected && selected === t) o.selected = true; fTeacherSel.appendChild(o); });
+            roomList.innerHTML = ''; dataState.rooms.forEach(r => { const o = document.createElement('option'); o.value = r; roomList.appendChild(o); });
+        }
+        function openEdit(id) {
+            const l = state.lessons.find(x => x.id === id); if (!l) return;
+            isCreating = false; creatingDraft = null; editId = id;
+
+            fSubject.value = l.subject || '';
+            fRoom.value = l.room || '';
+            renderTeacherSelect(l.teacher || '');
+
+            const col = colorForSubject(l.subject) || l.color || '#60a5fa';
+            if (fColorSwatch) fColorSwatch.style.background = col;
+
+            // Set importance checkbox
+            const fImportance = byId('fImportance');
+            if (fImportance) fImportance.checked = !!l.importance;
+
+            timePreview.textContent = `Zeit: ${formatRange(l)}`;
+
+            document.querySelector('#editModal h2').textContent = 'Fach bearbeiten';
+            byId('deleteLesson').style.display = '';
+            byId('saveLesson').textContent = 'Speichern';
+
+            showModal(editModal, '#fSubject');
+        }
+
+        // Whenever the subject changes in the modal, pull preset + color if available
+        fSubject?.addEventListener('input', () => {
+            const subj = (fSubject.value || '').trim();
+            const p = findPresetForSubject(subj);
+            if (p?.teacher) fTeacherSel.value = p.teacher;
+            if (p?.room) fRoom.value = p.room;
+            // set swatch only (no manual input)
+            if (fColorSwatch) fColorSwatch.style.background = colorForSubject(subj);
+        });
+
+        function updateLessonFromForm() {
+            const subject = (fSubject.value || '').trim() || 'Fach';
+            const teacher = fTeacherSel.value || '';
+            const room = (fRoom.value || '').trim();
+            const color = colorForSubject(subject);
+            const importance = byId('fImportance')?.checked || false;
+
+            if (isCreating && creatingDraft) {
+                const l = {
+                    id: uid(),
+                    subject,
+                    teacher,
+                    room,
+                    color,
+                    day: creatingDraft.day,
+                    startIndex: creatingDraft.startIndex,
+                    span: creatingDraft.span,
+                    importance
+                };
+                state.lessons = resolveCollisions([...state.lessons, l], state.periodCount);
+            } else if (editId) {
+                const l = state.lessons.find(x => x.id === editId); if (!l) return;
+                l.subject = subject; l.teacher = teacher; l.room = room; l.color = color; l.importance = importance;
+                state.lessons = state.lessons.map(x => x.id === l.id ? { ...l } : x);
+            }
+
+            isCreating = false; creatingDraft = null; editId = null;
+            savePlan(); renderGrid(); hideModal(editModal);
+        }
+
+        function currentOrNextLesson() {
+            const now = new Date();
+            const today = (now.getDay() + 6) % 7; // Mo=0
+            const nowMin = minutesSinceStart(now);
+            const block = state.periodMinutes + state.breakMinutes;
+
+            // 1) current (today)
+            const todayLs = state.lessons.filter(l => l.day === today);
+            for (const l of todayLs) {
+                const start = l.startIndex * block;
+                const end = start + l.span * state.periodMinutes;
+                if (nowMin >= start && nowMin < end) {
+                    return { type: "now", l, start, end, dayIndex: today, offset: 0 };
+                }
+            }
+
+            // 2) next (today or future)
+            for (let offset = 0; offset < 14; offset++) {
+                const day = (today + offset) % state.days.length;
+                const list = state.lessons
+                    .filter(l => l.day === day)
+                    .map(l => {
+                        const start = l.startIndex * block;
+                        const end = start + l.span * state.periodMinutes;
+                        return { l, start, end, dayIndex: day, offset };
+                    })
+                    .filter(x => offset > 0 ? true : x.start >= nowMin)
+                    .sort((a, b) => a.start - b.start);
+                if (list.length) return { ...list[0], type: "next" };
+            }
+            return null;
+        }
+
+        function findFolderForSubject(subject) {
+            const s = (subject || "").trim().toLowerCase();
+            return folderState.folders.find(f => (f.name || "").trim().toLowerCase() === s) || null;
+        }
+
+
+
+        function removeLesson(id) { state.lessons = state.lessons.filter(l => l.id !== id); savePlan(); renderGrid(); hideModal(editModal); hideModal(infoModal); }
+        function openCreate(day, periodIndex) {
+            const defaultSubject = dataState.subjects[0] || '';
+            const preset = findPresetForSubject(defaultSubject);
+            const suggestedColor = colorForSubject(defaultSubject);
+
+            isCreating = true;
+            creatingDraft = { day, startIndex: periodIndex, span: 1, color: suggestedColor };
+
+            editId = null;
+            fSubject.value = defaultSubject;
+            renderTeacherSelect(preset?.teacher || '');
+            fRoom.value = preset?.room || '';
+            if (fColorSwatch) fColorSwatch.style.background = suggestedColor;
+
+            // Reset importance checkbox
+            const fImportance = byId('fImportance');
+            if (fImportance) fImportance.checked = false;
+
+            timePreview.textContent =
+                `Zeit: ${timeLabelFromMinutes(dayStart, (periodIndex * (state.periodMinutes + state.breakMinutes)))}–` +
+                `${timeLabelFromMinutes(dayStart, (periodIndex * (state.periodMinutes + state.breakMinutes)) + state.periodMinutes)}`;
+
+            document.querySelector('#editModal h2').textContent = 'Fach anlegen';
+            byId('deleteLesson').style.display = 'none';
+            byId('saveLesson').textContent = 'Anlegen';
+
+            showModal(editModal, '#fSubject');
+        }
+
+        byId('saveLesson').addEventListener('click', updateLessonFromForm);
+        byId('deleteLesson').addEventListener('click', () => { if (editId) removeLesson(editId); });
+        editModal.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); updateLessonFromForm(); } });
+
+        // --- helpers (singleton listeners) ---------------------------------
+        const OPEN_KEY = 'sidebar_open_states_v1';
+        let openStates = {};
+        try { openStates = JSON.parse(localStorage.getItem(OPEN_KEY) || '{}'); } catch { openStates = {}; }
+        const saveOpenStates = () => localStorage.setItem(OPEN_KEY, JSON.stringify(openStates));
+
+        let accordionHandlersInstalled = false;
+        let sidebarOutsideHandler = null;
+        let sidebarEscHandler = null;
+
+        function installAccordionGlobalHandlers() {
+            if (accordionHandlersInstalled) return; // prevent stacking
+            const acc = document.getElementById('dataSidebar');
+            if (!acc) return;
+
+            sidebarOutsideHandler = (e) => {
+                if (!e.target.closest('#dataSidebar')) {
+                    acc.querySelectorAll('details[open]').forEach(d => {
+                        d.open = false;
+                        const key = d.dataset.groupKey;
+                        if (key) openStates[key] = false;
+                    });
+                    saveOpenStates();
+                }
+            };
+            document.addEventListener('mousedown', sidebarOutsideHandler);
+
+            sidebarEscHandler = (e) => {
+                if (e.key === 'Escape') {
+                    acc.querySelectorAll('details[open]').forEach(d => {
+                        d.open = false;
+                        const key = d.dataset.groupKey;
+                        if (key) openStates[key] = false;
+                    });
+                    saveOpenStates();
+                }
+            };
+            window.addEventListener('keydown', sidebarEscHandler);
+
+            accordionHandlersInstalled = true;
+        }
+
+        /* =================== DATEN-SEITENLEISTE (foldable) =================== */
+        const dataSidebar = byId('dataSidebar');
+        function renderDataSidebar() {
+            dataSidebar.innerHTML = '';
+
+            const groups = [
+                { key: 'teachers', label: 'Lehrkräfte' },
+                { key: 'rooms', label: 'Räume' },
+                { key: 'subjects', label: 'Fächer (Vorlagen)' },
+                { key: 'classes', label: 'Klassen' }
+            ];
+
+            groups.forEach(g => {
+                const det = document.createElement('details');
+                det.dataset.groupKey = g.key;
+                det.open = openStates[g.key] !== undefined ? !!openStates[g.key] : true;
+
+                const sum = document.createElement('summary');
+                sum.textContent = g.label;
+
+                // Prevent closing when already open; allow opening when closed
+                sum.addEventListener('click', (e) => {
+                    if (det.open) {           // currently open -> keep open
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+                    // if closed, native toggle will open it; we sync state on 'toggle'
+                });
+
+                det.addEventListener('toggle', () => {
+                    openStates[g.key] = det.open;
+                    saveOpenStates();
+                });
+
+                det.appendChild(sum);
+
+                const list = document.createElement('div');
+                list.className = 'side-list';
+
+                const arr = dataState[g.key];
+                arr.forEach((val, idx) => {
+                    const row = document.createElement('div'); row.className = 'side-row';
+                    const inp = document.createElement('input'); inp.value = val;
+                    const del = document.createElement('button'); del.className = 'btn mini danger'; del.textContent = 'Löschen';
+
+                    del.addEventListener('click', () => {
+                        arr.splice(idx, 1);
+                        saveData();
+                        renderDataSidebar();
+                        renderTeacherSelect();
+                    });
+                    inp.addEventListener('input', () => {
+                        arr[idx] = inp.value;
+                        saveData();
+                        renderTeacherSelect();
+                    });
+
+                    row.append(inp, del);
+                    list.appendChild(row);
+                });
+
+                const addRow = document.createElement('div'); addRow.className = 'side-row';
+                const addInp = document.createElement('input'); addInp.placeholder = `Neu (${g.label.slice(0, -1)})`;
+                const addBtn = document.createElement('button'); addBtn.className = 'btn mini primary'; addBtn.textContent = 'Hinzufügen';
+
+                const doAdd = () => {
+                    const v = (addInp.value || '').trim();
+                    if (!v) return;
+                    if (!arr.includes(v)) arr.push(v);
+                    addInp.value = '';
+                    saveData();
+                    renderDataSidebar();
+                    renderTeacherSelect();
+                };
+                addBtn.addEventListener('click', doAdd);
+                addInp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } });
+
+                addRow.append(addInp, addBtn);
+                list.appendChild(addRow);
+
+                det.appendChild(list);
+                dataSidebar.appendChild(det);
+            });
+
+            // ensure outside click / Esc behaviour stays wired after every render
+            installAccordionGlobalHandlers();
+        }
+        function upcomingLessons(max = 3) {
+            const now = new Date();
+            const todayIdx = (now.getDay() + 6) % 7;
+            const block = state.periodMinutes + state.breakMinutes;
+            const nowMin = minutesSinceStart(now);
+
+            // alle kommenden (inkl. aktuell laufend)
+            const result = [];
+            for (let offset = 0; offset < 14 && result.length < max; offset++) {
+                const dayIndex = (todayIdx + offset) % state.days.length;
+                const list = state.lessons
+                    .filter(l => l.day === dayIndex)
+                    .map(l => {
+                        const startMin = l.startIndex * block;
+                        const endMin = startMin + l.span * state.periodMinutes;
+                        const isToday = offset === 0;
+                        const type = isToday && nowMin >= startMin && nowMin < endMin ? 'now' : 'next';
+                        return { l, dayIndex, startMin, endMin, offset, type };
+                    })
+                    .filter(x => x.type === 'now' || x.offset > 0 || (x.offset === 0 && x.startMin >= nowMin))
+                    .sort((a, b) => a.startMin - b.startMin);
+
+                for (const it of list) {
+                    result.push(it);
+                    if (result.length >= max) break;
+                }
+            }
+            return result;
+        }
+        function folderChipHtml(subject) {
+            const folder = findFolderForSubject(subject);
+            if (!folder) {
+                return `<button class="btn mini primary" id="ovHeroCreateFolder">Ordner anlegen</button>`;
+            }
+            const col = folder.color || '#e2e8f0';
+            return `<span class="folder-chip clickable" id="ovHeroFolder" data-folder-id="${folder.id}" style="--col:${col}">
+                <span class="swatch"></span>${folder.name}
+            </span>`;
+        }
+
+        function renderHeroSingle() {
+            const info = getCurrentOrNextLesson();
+            const heroSub = byId('ovHeroSub');
+
+            if (!info) {
+                heroSub.innerHTML = 'Heute: <strong>keine Stunde mehr</strong>.';
+                return;
+            }
+
+            const { l, type, start, end, offset } = info;
+            const startLbl = timeLabelFromMinutes(dayStart, start);
+            const endLbl = timeLabelFromMinutes(dayStart, end);
+            const dayLbl =
+                type === 'now' ? 'Jetzt' :
+                    offset === 0 ? 'Als Nächstes' :
+                        offset === 1 ? 'Morgen' :
+                            (state.days[(l.day)] || `Tag ${l.day + 1}`);
+
+            const rest = type === 'now'
+                ? ` <span class="meta">(${Math.max(0, Math.ceil(end - minutesSinceStart(new Date())))} Min übrig)</span>`
+                : '';
+
+            heroSub.innerHTML = `${dayLbl}: <strong>${l.subject}</strong> · ${startLbl}–${endLbl} · Raum ${l.room || '–'} · ${l.teacher || ''}${rest}
+                        &nbsp; ${folderChipHtml(l.subject)}`;
+        }
+
+        function buildHeroSingleHtml() {
+            const info = getCurrentOrNext();
+            if (!info) return 'Heute: <strong>keine Stunde mehr</strong>.';
+
+            const { l } = info;
+            const start = timeLabelFromMinutes(dayStart, info.startMin);
+            const end = timeLabelFromMinutes(dayStart, info.endMin);
+
+            const label =
+                info.type === 'now' ? 'Jetzt' :
+                    info.offset === 0 ? 'Als Nächstes' :
+                        info.offset === 1 ? 'Morgen' :
+                            (state.days[info.dayIndex] || `Tag ${info.dayIndex + 1}`);
+
+            const rest = info.type === 'now'
+                ? ` <span class="meta">(${Math.max(0, Math.ceil(info.endMin - minutesSinceStart(new Date())))} Min übrig)</span>`
+                : '';
+
+            return `<div><strong>${label}:</strong> ${l.subject} · ${start}–${end} · Raum ${l.room || '–'} · ${l.teacher || ''}${rest}
+                    &nbsp; ${folderChipHtml(l.subject)}</div>`;
+        }
+
+        function buildHeroListHtml() {
+            const items = upcomingLessons(3);
+            if (!items.length) return 'Heute: <strong>keine Stunde mehr</strong>.';
+
+            const li = items.map(info => {
+                const { l } = info;
+                const start = timeLabelFromMinutes(dayStart, info.startMin);
+                const end = timeLabelFromMinutes(dayStart, info.endMin);
+
+                const dayLabel =
+                    info.type === 'now' ? 'Jetzt' :
+                        info.offset === 0 ? 'Als Nächstes' :
+                            info.offset === 1 ? 'Morgen' :
+                                (state.days[info.dayIndex] || `Tag ${info.dayIndex + 1}`);
+
+                // optional: Restzeit bei "Jetzt"
+                const rest = info.type === 'now'
+                    ? ` <span class="meta">(${Math.max(0, Math.ceil(info.endMin - minutesSinceStart(new Date())))} Min übrig)</span>`
+                    : '';
+
+                return `<li>
+        <strong>${dayLabel}:</strong> ${l.subject} · ${start}–${end} · Raum ${l.room || '–'} · ${l.teacher || ''}${rest}
+        &nbsp; ${folderChipHtml(l.subject)}
+        </li>`;
+            });
+
+            return `<ul>${li.join('')}</ul>`;
+        }
+
+        function getCurrentOrNext() {
+            const now = new Date();
+            const todayIdx = (now.getDay() + 6) % 7;
+            const block = state.periodMinutes + state.breakMinutes;
+            const nowMin = minutesSinceStart(now);
+
+            // 1) Läuft gerade (heute)?
+            const today = state.lessons
+                .filter(l => l.day === todayIdx)
+                .map(l => {
+                    const startMin = l.startIndex * block;
+                    const endMin = startMin + l.span * state.periodMinutes;
+                    return { l, dayIndex: todayIdx, startMin, endMin, offset: 0 };
+                })
+                .sort((a, b) => a.startMin - b.startMin);
+
+            const running = today.find(x => nowMin >= x.startMin && nowMin < x.endMin);
+            if (running) return { ...running, type: 'now' };
+
+            // 2) Nächste Stunde ab jetzt vorwärts suchen (heute inkl. nach jetzt)
+            for (let offset = 0; offset < 14; offset++) {
+                const d = (todayIdx + offset) % state.days.length;
+                const list = state.lessons
+                    .filter(l => l.day === d)
+                    .map(l => {
+                        const startMin = l.startIndex * block;
+                        const endMin = startMin + l.span * state.periodMinutes;
+                        return { l, dayIndex: d, startMin, endMin, offset };
+                    })
+                    .filter(x => offset > 0 ? true : x.startMin >= nowMin)
+                    .sort((a, b) => a.startMin - b.startMin);
+
+                if (list.length) return { ...list[0], type: 'next' };
+            }
+
+            return null; // gar nichts in den nächsten 2 Wochen
+        }
+        function renderHeroCompact() {
+            const host = byId('ovHeroSub');
+            const info = currentOrNextLesson();
+
+            if (!info) {
+                host.innerHTML = `<div class="hero-compact">
+                                    <div>
+                                    <div class="hc-title">Heute: keine Stunde mehr</div>
+                                    <div class="hc-meta">Alles erledigt ✨</div>
+                                    </div>
+                                    <div style="width:56px;height:56px"></div>
+                                </div>`;
+                return;
+            }
+
+            const { l, type, start, end, dayIndex, offset } = info;
+            const title = (type === 'now') ? 'Jetzt' : (offset === 0 ? 'Als Nächstes' : (offset === 1 ? 'Morgen' : (state.days[dayIndex] || 'Demnächst')));
+            const startLbl = timeLabelFromMinutes(dayStart, start);
+            const endLbl = timeLabelFromMinutes(dayStart, end);
+            const dayLbl = state.days[dayIndex] || `Tag ${dayIndex + 1}`;
+
+            const meta = `${dayLbl}: <strong>${l.subject}</strong> ${startLbl}–${endLbl} | Raum ${l.room || '–'} · ${l.teacher || ''}`;
+
+            // folder tile
+            const folder = findFolderForSubject(l.subject);
+            const col = folder?.color || '#e5e7eb';
+            const rightHtml = folder
+                ? `<button class="folder-tile" id="ovHeroFolder" data-folder-id="${folder.id}" style="--col:${col}">
+                        <span class="swatch"></span>
+                    </button>`
+                : `<button class="folder-tile" id="ovHeroCreateFolder" style="--col:#e5e7eb" title="Ordner anlegen">
+                        <span class="swatch"></span>
+                    </button>`;
+
+            host.innerHTML = `<div class="hero-compact">
+                    <div>
+                        <div class="hc-title">${title}</div>
+                        <div class="hc-meta">${meta}</div>
+                    </div>
+                    ${rightHtml}
+                </div>`;
+
+            // clicks
+            byId('ovHeroFolder')?.addEventListener('click', (e) => {
+                const id = e.currentTarget.getAttribute('data-folder-id');
+                if (id) { byId('navFolders').click(); openFolderDetail(id); }
+            });
+            byId('ovHeroCreateFolder')?.addEventListener('click', () => {
+                // prefill with subject name + color
+                byId('navFolders').click();
+                openFolderEdit(null);
+                folderNameInput.value = l.subject || 'Neuer Ordner';
+                folderColorInput.value = col;
+            });
+        }
+
+        /* =================== OVERVIEW (breit & visuals) =================== */
+        function renderOverview() {
+            // (Uhr & alter Hero entfallen)
+            // KPIs, Heatmap, Bars, Listen wie gehabt:
+            const weekStats = calcWeekStats();
+            byId('kpiWeekLessons').textContent = weekStats.count.toString();
+            byId('kpiWeekMinutes').textContent = `${weekStats.minutes} Min · ${weekStats.hours} h`;
+
+            const todayStats = calcTodayStats();
+            byId('kpiFreeToday').textContent = todayStats.freeBlocks.toString();
+            byId('kpiBusyToday').textContent = `${todayStats.busyBlocks} belegt`;
+
+            const subjectsSet = new Set(state.lessons.map(l => (l.subject || '').trim()).filter(Boolean));
+            byId('kpiSubjects').textContent = subjectsSet.size.toString();
+            byId('kpiFolders').textContent = `Ordner: ${folderState.folders.length}`;
+
+            drawHeatmap('heatmap', buildHeatMatrix());
+            const subjDist = subjectDistribution();
+            drawBars('barSubjects', subjDist.labels, subjDist.values);
+            renderTodayList('listToday');
+            renderRecentFiles('listRecent');
+
+            // **NEU**: Kompakte Box in den neuen Platzhalter
+            const host = byId('ovHeroInline');
+            if (host) {
+                // nutzt deine vorhandene current/next-Logik:
+                const info = getCurrentOrNextLesson();   // oder currentOrNextLesson()
+                if (!info) {
+                    host.innerHTML = '';                   // nichts anzeigen
+                } else {
+                    const { l, type, start, end, dayIndex } = info;
+                    const title = type === 'now' ? 'Jetzt' : 'Als Nächstes';
+                    const startLbl = timeLabelFromMinutes(dayStart, start);
+                    const endLbl = timeLabelFromMinutes(dayStart, end);
+                    const dayLbl = state.days[dayIndex] || `Tag ${dayIndex + 1}`;
+                    const meta = `${dayLbl}: <strong>${l.subject}</strong> ${startLbl}–${endLbl} | Raum ${l.room || '–'} | ${l.teacher || ''}`;
+
+                    const folder = findFolderForSubject(l.subject);
+                    const col = folder?.color || '#e5e7eb';
+                    const folderHtml = folder
+                        ? `<button class="folder-tile" id="ovHeroFolder" data-folder-id="${folder.id}" style="--col:${col}"><span class="swatch"></span></button>`
+                        : `<button class="folder-tile" id="ovHeroCreateFolder" style="--col:#e5e7eb" title="Ordner anlegen"><span class="swatch"></span></button>`;
+                    host.innerHTML = `
+                            <div class="hero-compact">
+                                <div>
+                                <div class="hc-title">${title}</div>
+                                <div class="hc-meta">${meta}</div>
+                                </div>
+                                ${folderHtml}
+                            </div>`;
+
+                    byId('ovHeroFolder')?.addEventListener('click', e => {
+                        const id = e.currentTarget.getAttribute('data-folder-id');
+                        if (id) { byId('navFolders').click(); openFolderDetail(id); }
+                    });
+                    byId('ovHeroCreateFolder')?.addEventListener('click', () => {
+                        byId('navFolders').click(); openFolderEdit(null);
+                    });
+                }
+            }
+
+            // Pomodoro-Init wie gehabt
+            initPomodoroOnce();
+        }
+
+        function getCurrentOrNextLesson() {
+            const now = new Date();
+            const today = (now.getDay() + 6) % 7;
+            const nowMin = minutesSinceStart(now);
+            const block = state.periodMinutes + state.breakMinutes;
+
+            // aktuelle
+            const todayLs = state.lessons.filter(l => l.day === today);
+            for (const l of todayLs) {
+                const start = l.startIndex * block;
+                const end = start + l.span * state.periodMinutes;
+                if (nowMin >= start && nowMin < end) {
+                    return { type: 'now', l, start, end, dayIndex: today, offset: 0 };
+                }
+            }
+
+            // nächste
+            for (let offset = 0; offset < 7; offset++) {
+                const day = (today + offset) % state.days.length;
+                const lessons = state.lessons
+                    .filter(l => l.day === day)
+                    .map(l => {
+                        const start = l.startIndex * block;
+                        const end = start + l.span * state.periodMinutes;
+                        return { l, start, end, dayIndex: day, offset };
+                    })
+                    .filter(x => offset > 0 ? true : x.start >= nowMin)
+                    .sort((a, b) => a.start - b.start);
+                if (lessons.length) return { ...lessons[0], type: 'next' };
+            }
+            return null;
+        }
+
+        function renderOverviewHeroCompact() {
+            const heroSub = byId('ovHeroSub');
+            const info = getCurrentOrNextLesson();
+
+            if (!info) {
+                heroSub.innerHTML = `<div class="hero-compact">
+                    <div><div class="hc-title">Heute: nichts mehr anstehend</div>
+                    <div class="hc-meta">Alles geschafft 🎉</div></div>
+                    <div style="width:60px;height:60px"></div>
+                    </div>`;
+                return;
+            }
+
+            const { l, type, start, end, dayIndex } = info;
+            const title = type === 'now' ? 'Jetzt' : 'Als Nächstes';
+            const startLbl = timeLabelFromMinutes(dayStart, start);
+            const endLbl = timeLabelFromMinutes(dayStart, end);
+            const dayLbl = state.days[dayIndex] || `Tag ${dayIndex + 1}`;
+            const meta = `${dayLbl}: <strong>${l.subject}</strong> ${startLbl}–${endLbl} | Raum ${l.room || '–'} | ${l.teacher || ''}`;
+
+            const folder = findFolderForSubject(l.subject);
+            const col = folder?.color || '#e5e7eb';
+            const folderHtml = folder
+                ? `<button class="folder-tile" id="ovHeroFolder" data-folder-id="${folder.id}" style="--col:${col}">
+                        <span class="swatch"></span>
+                    </button>`
+                : `<button class="folder-tile" id="ovHeroCreateFolder" style="--col:#e5e7eb" title="Ordner anlegen">
+                        <span class="swatch"></span>
+                    </button>`;
+
+            heroSub.innerHTML = `
+                    <div class="hero-compact">
+                    <div>
+                    <div class="hc-title">${title}</div>
+                    <div class="hc-meta">${meta}</div>
+                    </div>
+                    ${folderHtml}
+                    </div>`;
+
+            // Ordner-Klicks
+            byId('ovHeroFolder')?.addEventListener('click', e => {
+                const id = e.currentTarget.getAttribute('data-folder-id');
+                if (id) { byId('navFolders').click(); openFolderDetail(id); }
+            });
+            byId('ovHeroCreateFolder')?.addEventListener('click', () => {
+                byId('navFolders').click();
+                openFolderEdit(null);
+            });
+        }
+
+
+        function nextLessonLabel() {
+            const info = currentOrNextLesson();
+            if (info.type === 'none') return 'Heute: <strong>keine Stunde mehr</strong>.';
+
+            const l = info.lesson;
+            const start = timeLabelFromMinutes(dayStart, info.startMin);
+            const end = timeLabelFromMinutes(dayStart, info.endMin);
+
+            const dayLabel =
+                (info.type === 'now')
+                    ? 'Jetzt'
+                    : (info.offset === 0
+                        ? 'Als Nächstes'
+                        : (info.offset === 1
+                            ? 'Morgen'
+                            : (state.days[info.dayIndex] || `Tag ${info.dayIndex + 1}`)));
+
+            // Ordner ermitteln
+            const folder = findFolderForSubject(l.subject);
+            const folderHtml = folder
+                ? `<span class="badge clickable" id="ovHeroFolder" data-folder-id="${folder.id}">Ordner: ${folder.name}</span>`
+                : `<button class="btn mini primary" id="ovHeroCreateFolder">Ordner anlegen</button>`;
+
+            // Restzeit, wenn gerade läuft
+            let restHtml = '';
+            if (info.type === 'now') {
+                const minsLeft = Math.max(0, Math.ceil(info.endMin - minutesSinceStart(new Date())));
+                restHtml = ` • <span class="meta">(${minsLeft} Min übrig)</span>`;
+            }
+
+            return `${dayLabel}: <strong>${l.subject}</strong> · ${start}–${end} · Raum ${l.room || '–'} · ${l.teacher || ''}${restHtml} &nbsp; ${folderHtml}`;
+        }
+
+
+        function calcWeekStats() {
+            const minutes = state.lessons.reduce((sum, l) => sum + l.span * state.periodMinutes, 0);
+            return { count: state.lessons.length, minutes, hours: Math.round(minutes / 60) };
+        }
+        function calcTodayStats() {
+            const now = new Date(); const day = (now.getDay() + 6) % 7;
+            const occ = new Set(state.lessons.filter(l => l.day === day).flatMap(l => {
+                return Array.from({ length: l.span }, (_, i) => l.startIndex + i);
+            }));
+            const busy = occ.size;
+            const free = Math.max(0, state.periodCount - busy);
+            return { busyBlocks: busy, freeBlocks: free };
+        }
+
+        // returns an array of same shape but with color strings or null
+        function buildHeatMatrix() {
+            // matrix[period][day] = { color, importance } | null
+            const m = Array.from({ length: state.periodCount }, () => Array(state.days.length).fill(null));
+
+            for (const l of state.lessons) {
+                const color = (l.color && l.color.trim()) || dataState.subjectColors[(l.subject || "").trim()] || "#60a5fa";
+                for (let i = 0; i < l.span; i++) {
+                    const p = l.startIndex + i;
+                    if (p >= 0 && p < state.periodCount && l.day < state.days.length) {
+                        // if multiple items collide visually, first wins
+                        if (!m[p][l.day]) {
+                            m[p][l.day] = { color, importance: !!l.importance };
+                        }
+                    }
+                }
+            }
+            return m; // periods as rows (colors)
+        }
+
+
+        function subjectDistribution() {
+            const map = new Map();
+            for (const l of state.lessons) {
+                const key = (l.subject || '—').trim();
+                map.set(key, (map.get(key) || 0) + 1);
+            }
+            const labels = [...map.keys()];
+            const values = labels.map(k => map.get(k));
+            return { labels, values };
+        }
+
+        function drawHeatmap(id, matrix) {
+            const el = byId(id); if (!el) return;
+
+            // Clean up any existing tooltips before redrawing
+            document.querySelectorAll('.heatmap-tooltip').forEach(tooltip => {
+                if (tooltip.parentNode) {
+                    tooltip.parentNode.removeChild(tooltip);
+                }
+            });
+
+            el.innerHTML = '';
+            const containerW = el.clientWidth || 300;
+
+            // Calculate cell dimensions
+            const cellW = Math.max(22, Math.floor(containerW / (state.days.length + 1)));
+            const cellH = Math.max(18, 20); // Fixed height per cell
+
+            // Calculate total dimensions based on actual content
+            const w = cellW * (state.days.length + 1);
+            const h = cellH * (state.periodCount + 1);
+
+            // Update container height to fit content
+            el.style.height = h + 'px';
+
+            const svg = svgEl('svg', { width: w, height: h });
+
+            // day headers
+            state.days.forEach((d, dx) => svg.appendChild(svgText(d, cellW * (dx + 1) + cellW / 2, cellH * 0.6)));
+
+            // period labels + cells
+            for (let p = 0; p < state.periodCount; p++) {
+                const lbl = timeLabelFromMinutes(dayStart, p * (state.periodMinutes + state.breakMinutes));
+                svg.appendChild(svgText(lbl, cellW * 0.5, cellH * (p + 1.8)));
+
+                for (let d = 0; d < state.days.length; d++) {
+                    const cell = matrix[p][d]; // { color, importance } | null
+                    const x = cellW * (d + 1), y = cellH * (p + 1);
+                    const fill = cell ? cell.color : '#e5e7eb';
+                    const rect = svgRect(x + 2, y + 2, cellW - 4, cellH - 4, 6, fill);
+
+                    // Add hover functionality for cells with content
+                    if (cell) {
+                        rect.style.cursor = 'pointer';
+                        rect.addEventListener('mouseenter', (e) => {
+                            // Find the lesson for this cell
+                            const dayLessons = state.lessons.filter(l => l.day === d);
+                            const lesson = dayLessons.find(l => {
+                                const start = l.startIndex;
+                                const end = start + l.span;
+                                return p >= start && p < end;
+                            });
+
+                            if (lesson) {
+                                const timeRange = formatRange(lesson);
+                                const importanceText = lesson.importance ? ' ⚠️ Wichtig' : '';
+                                const tooltipContent = `${lesson.subject}${importanceText}\n${timeRange}\nRaum: ${lesson.room || '–'}\nLehrer: ${lesson.teacher || '–'}`;
+
+                                // Create tooltip
+                                const tooltip = document.createElement('div');
+                                tooltip.className = 'heatmap-tooltip';
+                                tooltip.textContent = tooltipContent;
+                                tooltip.style.whiteSpace = 'pre-line';
+                                document.body.appendChild(tooltip);
+
+                                // Position tooltip
+                                const rectBounds = rect.getBoundingClientRect();
+                                const tooltipBounds = tooltip.getBoundingClientRect();
+
+                                let left = rectBounds.left + (rectBounds.width / 2) - (tooltipBounds.width / 2);
+                                let top = rectBounds.top - tooltipBounds.height - 10;
+
+                                // Adjust if tooltip goes off screen
+                                if (left < 10) left = 10;
+                                if (left + tooltipBounds.width > window.innerWidth - 10) {
+                                    left = window.innerWidth - tooltipBounds.width - 10;
+                                }
+                                if (top < 10) {
+                                    top = rectBounds.bottom + 10;
+                                    tooltip.style.transform = 'translateY(0)';
+                                }
+
+                                tooltip.style.left = left + 'px';
+                                tooltip.style.top = top + 'px';
+
+                                // Show tooltip
+                                setTimeout(() => tooltip.classList.add('show'), 10);
+
+                                // Store tooltip reference for cleanup
+                                rect._tooltip = tooltip;
+                            }
+                        });
+
+                        rect.addEventListener('mouseleave', () => {
+                            if (rect._tooltip) {
+                                rect._tooltip.classList.remove('show');
+                                setTimeout(() => {
+                                    if (rect._tooltip && rect._tooltip.parentNode) {
+                                        rect._tooltip.parentNode.removeChild(rect._tooltip);
+                                    }
+                                    rect._tooltip = null;
+                                }, 200);
+                            }
+                        });
+
+                        // Also clean up on mouseout as backup
+                        rect.addEventListener('mouseout', () => {
+                            if (rect._tooltip) {
+                                rect._tooltip.classList.remove('show');
+                                setTimeout(() => {
+                                    if (rect._tooltip && rect._tooltip.parentNode) {
+                                        rect._tooltip.parentNode.removeChild(rect._tooltip);
+                                    }
+                                    rect._tooltip = null;
+                                }, 200);
+                            }
+                        });
+                    }
+
+                    svg.appendChild(rect);
+
+                    // Add border for important lessons
+                    if (cell && cell.importance) {
+                        const border = svgRect(x + 1, y + 1, cellW - 2, cellH - 2, 6, 'none');
+                        border.setAttribute('stroke', '#f59e0b');
+                        border.setAttribute('stroke-width', '2');
+                        svg.appendChild(border);
+                    }
+                }
+            }
+            el.appendChild(svg);
+
+            // Add red time line to heatmap
+            const currentTime = new Date();
+            const today = ((currentTime.getDay() + 6) % 7); // Mo=0
+            const nowMin = minutesSinceStart(currentTime);
+            const totalSpan = state.periodCount * (state.periodMinutes + state.breakMinutes);
+            const showRed = today < state.days.length && nowMin >= 0 && nowMin <= totalSpan;
+
+            if (showRed) {
+                const block = state.periodMinutes + state.breakMinutes;
+                const redLineY = ((nowMin / block) * cellH) + cellH; // +cellH for header offset
+
+                // Create red line
+                const redLine = svgEl('line', {
+                    x1: cellW,
+                    y1: redLineY,
+                    x2: w,
+                    y2: redLineY,
+                    stroke: '#ef4444',
+                    'stroke-width': '2',
+                    'stroke-dasharray': '4,4'
+                });
+                svg.appendChild(redLine);
+
+                // Add red dot on current day column
+                const currentDayX = cellW * (today + 1) + cellW / 2;
+                const redDot = svgEl('circle', {
+                    cx: currentDayX,
+                    cy: redLineY,
+                    r: '4',
+                    fill: '#ef4444'
+                });
+                svg.appendChild(redDot);
+            }
+
+            // Add completed day overlay to heatmap
+            if (showCompleted) {
+                const completedOverlay = svgEl('rect', {
+                    x: cellW * (weekday + 1),
+                    y: cellH,
+                    width: cellW,
+                    height: h - cellH,
+                    fill: 'rgba(34, 197, 94, 0.1)',
+                    'pointer-events': 'none'
+                });
+                svg.appendChild(completedOverlay);
+
+                // Add checkmark
+                const checkmark = svgEl('text', {
+                    x: cellW * (weekday + 1) + cellW / 2,
+                    y: h / 2,
+                    'text-anchor': 'middle',
+                    'dominant-baseline': 'middle',
+                    fill: 'rgba(255, 255, 255, 0.8)',
+                    'font-size': '48',
+                    'font-weight': '900',
+                    'pointer-events': 'none'
+                });
+                checkmark.textContent = '✓';
+                svg.appendChild(checkmark);
+            }
+
+            // Add global cleanup for tooltips on scroll/resize
+            const cleanupTooltips = () => {
+                document.querySelectorAll('.heatmap-tooltip').forEach(tooltip => {
+                    if (tooltip.parentNode) {
+                        tooltip.parentNode.removeChild(tooltip);
+                    }
+                });
+            };
+
+            // Clean up tooltips on various events
+            window.addEventListener('scroll', cleanupTooltips);
+            window.addEventListener('resize', cleanupTooltips);
+
+            // Also clean up when clicking elsewhere
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.chart-wrap')) {
+                    cleanupTooltips();
+                }
+            });
+        }
+
+
+        function drawBars(id, labels, values) {
+            const el = byId(id); if (!el) return; el.innerHTML = '';
+            if (!labels.length) { el.innerHTML = '<div class="small">Keine Daten</div>'; return; }
+            const w = el.clientWidth || 300; const h = el.clientHeight || 220;
+            const padL = 90, padR = 12, padT = 10, padB = 24;
+            const max = Math.max(...values, 1);
+            const barH = Math.min(26, Math.floor((h - padT - padB) / labels.length) - 6);
+
+            const svg = svgEl('svg', { width: w, height: h });
+            labels.forEach((lab, i) => {
+                const y = padT + i * (barH + 8);
+                const val = values[i];
+                const bw = ((w - padL - padR) * val) / max;
+                svg.appendChild(svgText(lab, padL - 10, y + barH * 0.75, 'end'));
+                svg.appendChild(svgRect(padL, y, bw, barH, 8, '#34d399'));
+                svg.appendChild(svgText(String(val), padL + bw + 6, y + barH * 0.75, 'start', 12, '#475569'));
+            });
+            el.appendChild(svg);
+        }
+
+        function svgEl(tag, attrs) { const n = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attrs) n.setAttribute(k, attrs[k]); return n; }
+        function svgRect(x, y, w, h, r, fill) { const rct = svgEl('rect', { x, y, width: w, height: h, rx: r, ry: r, fill }); return rct; }
+        function svgText(text, x, y, anchor = 'middle', size = 12, fill = '#0f172a') {
+            const t = svgEl('text', { x, y, 'text-anchor': anchor, 'dominant-baseline': 'middle', fill, 'font-size': size }); t.textContent = text; return t;
+        }
+
+        /* ===== Listen ===== */
+        function renderTodayList(targetId) {
+            const box = byId(targetId); if (!box) return; box.innerHTML = '';
+            const now = new Date(); const day = (now.getDay() + 6) % 7;
+            const block = state.periodMinutes + state.breakMinutes;
+            const list = state.lessons
+                .filter(l => l.day === day)
+                .map(l => {
+                    const startMin = l.startIndex * block;
+                    const endMin = startMin + l.span * state.periodMinutes;
+                    return { l, start: timeLabelFromMinutes(dayStart, startMin), end: timeLabelFromMinutes(dayStart, endMin) };
+                })
+                .sort((a, b) => a.start.localeCompare(b.start));
+
+            if (!list.length) { box.innerHTML = '<div class="small">Heute nichts geplant.</div>'; return; }
+            list.forEach(it => {
+                const row = document.createElement('div'); row.className = 'mini-item';
+                row.innerHTML = `<div><strong>${it.l.subject}</strong><div class="meta">${it.start}–${it.end} · Raum ${it.l.room || '–'} · ${it.l.teacher || ''}</div></div>
+                <span class="badge">${it.l.span}×${state.periodMinutes}</span>`;
+                row.addEventListener('click', () => openInfo(it.l.id));
+                box.appendChild(row);
+            });
+        }
+
+        function renderRecentFiles(targetId) {
+            const box = byId(targetId); if (!box) return; box.innerHTML = '';
+            const items = folderState.folders.flatMap(f => f.items.map(it => ({ ...it, folder: f.name })))
+                .sort((a, b) => new Date(b.added) - new Date(a.added)).slice(0, 6);
+            if (!items.length) { box.innerHTML = '<div class="small">Noch keine Dateien.</div>'; return; }
+            items.forEach(it => {
+                const row = document.createElement('div'); row.className = 'mini-item';
+                row.innerHTML = `<div><strong>${it.name}</strong><div class="meta">${it.folder} • ${it.ext.toUpperCase()} • ${new Date(it.added).toLocaleString()}</div></div>
+                    <span class="badge">${it.topic}</span>`;
+                row.addEventListener('click', () => { hideModal(document.querySelector('.modal[aria-hidden="false"]') || { setAttribute: () => { } }); byId('navFolders').click(); });
+                box.appendChild(row);
+            });
+        }
+
+        /* ===== Pomodoro-Timer (25/5) ===== */
+        /* ===== Pomodoro-Timer (25/5) – Toggle Start/Pause ===== */
+        let pom = { lenFocus: 25 * 60, lenBreak: 5 * 60, left: 25 * 60, mode: 'focus', running: false, t: null };
+
+        function initPomodoroOnce() {
+            if (initPomodoroOnce.did) return; initPomodoroOnce.did = true;
+
+            const face = byId('pomFace');
+            const stateEl = byId('pomState');
+            const toggleBtn = byId('pomToggle');
+            const toggleLbl = byId('pomToggleLbl');
+            const toggleIco = byId('pomToggleIcon');
+
+            const playSvg = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+            const pauseSvg = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>';
+
+            const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+
+            const setToggleUI = () => {
+                if (pom.running) {
+                    toggleBtn.classList.remove('primary'); toggleBtn.classList.add('ghost');
+                    toggleLbl.textContent = 'Pause';
+                    toggleBtn.setAttribute('aria-pressed', 'true');
+                    toggleIco.innerHTML = pauseSvg;
+                } else {
+                    toggleBtn.classList.add('primary'); toggleBtn.classList.remove('ghost');
+                    toggleLbl.textContent = 'Start';
+                    toggleBtn.setAttribute('aria-pressed', 'false');
+                    toggleIco.innerHTML = playSvg;
+                }
+            };
+
+            const render = () => {
+                face.textContent = fmt(pom.left);
+                stateEl.textContent = pom.mode === 'focus' ? 'Fokus 25 • Pause 5' : 'Pause läuft';
+            };
+
+            const tick = () => {
+                if (!pom.running) return;
+                pom.left--;
+                if (pom.left <= 0) {
+                    if (pom.mode === 'focus') { pom.mode = 'break'; pom.left = pom.lenBreak; }
+                    else { pom.mode = 'focus'; pom.left = pom.lenFocus; }
+                }
+                render();
+            };
+
+            toggleBtn.addEventListener('click', () => {
+                pom.running = !pom.running;
+                if (!pom.t) pom.t = setInterval(tick, 1000);
+                setToggleUI();
+                render();
+            });
+
+            byId('pomReset').addEventListener('click', () => {
+                pom.running = false;
+                pom.mode = 'focus';
+                pom.left = pom.lenFocus;
+                setToggleUI();
+                render();
+            });
+
+            setToggleUI();
+            render();
+        }
+
+        // Quick-Links
+        byId('ovGoPlan')?.addEventListener('click', () => byId('navPlan').click());
+        byId('ovGoFolders')?.addEventListener('click', () => byId('navFolders').click());
+        byId('ovGoSettings')?.addEventListener('click', () => byId('navSettings').click());
+
+        function renderPresetManager() {
+            const host = byId('presetManager');
+            if (!host) return;
+            const subjColors = dataState.subjectColors || {};
+            const presets = dataState.presets || [];
+
+            // subjects + colors editor
+            const subjects = [...new Set([...(dataState.subjects || []), ...Object.keys(subjColors)])].sort((a, b) => a.localeCompare(b));
+            let html = `
+                            <h4 style="margin:8px 0 6px">Fachfarben</h4>
+                            <table class="preset-table">
+                            <thead><tr><th>Fach</th><th>Farbe</th><th style="width:1%"></th></tr></thead>
+                            <tbody>
+                                ${subjects.map(s => `
+                                <tr data-subj="${s}">
+                                    <td>${s}</td>
+                                    <td><input class="inline-color" type="color" value="${subjColors[s] || '#60a5fa'}" data-role="subj-color"></td>
+                                    <td><button class="btn mini danger" data-role="remove-subj">Entfernen</button></td>
+                                </tr>
+                                `).join('')}
+                                <tr>
+                                <td><input class="inline-input" placeholder="Neues Fach"></td>
+                                <td><input class="inline-color" type="color" value="#60a5fa"></td>
+                                <td><button class="btn mini primary" data-role="add-subj">Hinzufügen</button></td>
+                                </tr>
+                            </tbody>
+                            </table>
+                        `;
+
+            // presets editor
+            html += `
+                            <h4 style="margin:16px 0 6px">Presets (Fach → Vorgaben)</h4>
+                            <table class="preset-table">
+                            <thead><tr><th>Fach</th><th>Lehrer:in</th><th>Raum</th><th>Farbe</th><th style="width:1%"></th></tr></thead>
+                            <tbody>
+                                ${presets.map((p, i) => `
+                                <tr data-idx="${i}">
+                                    <td><input class="inline-input" value="${p.subject || ''}" placeholder="Fach"></td>
+                                    <td><input class="inline-input" value="${p.teacher || ''}" list="teacherList" placeholder="Lehrer:in"></td>
+                                    <td><input class="inline-input" value="${p.room || ''}" list="roomList" placeholder="Raum"></td>
+                                    <td><input class="inline-color" type="color" value="${p.color || dataState.subjectColors[p.subject] || '#60a5fa'}"></td>
+                                    <td class="preset-row-actions"><button class="btn mini danger" data-role="remove-preset">×</button></td>
+                                </tr>
+                                `).join('')}
+                                <tr data-idx="new">
+                                <td><input class="inline-input" placeholder="Fach"></td>
+                                <td><input class="inline-input" list="teacherList" placeholder="Lehrer:in"></td>
+                                <td><input class="inline-input" list="roomList" placeholder="Raum"></td>
+                                <td><input class="inline-color" type="color" value="#60a5fa"></td>
+                                <td><button class="btn mini primary" data-role="add-preset">Hinzufügen</button></td>
+                                </tr>
+                            </tbody>
+                            </table>
+                        `;
+
+            host.innerHTML = html;
+
+            // Wire subject color table
+            host.querySelectorAll('[data-role="subj-color"]').forEach(inp => {
+                inp.addEventListener('input', (e) => {
+                    const row = e.target.closest('tr');
+                    const subj = row.dataset.subj;
+                    dataState.subjectColors[subj] = e.target.value;
+                    saveData();
+                });
+            });
+            host.querySelectorAll('[data-role="remove-subj"]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const row = btn.closest('tr'); const subj = row.dataset.subj;
+                    delete dataState.subjectColors[subj];
+                    // do not remove from subjects[] list here; color removal only
+                    saveData(); renderPresetManager();
+                });
+            });
+            host.querySelector('[data-role="add-subj"]')?.addEventListener('click', () => {
+                const row = host.querySelector('table tbody tr:last-child');
+                const subj = row.querySelector('input.inline-input').value.trim();
+                const col = row.querySelector('input.inline-color').value;
+                if (!subj) return;
+                if (!dataState.subjects.includes(subj)) dataState.subjects.push(subj);
+                dataState.subjectColors[subj] = col;
+                saveData(); renderPresetManager();
+            });
+
+            // Wire presets table
+            host.querySelectorAll('[data-role="remove-preset"]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const i = Number(btn.closest('tr').dataset.idx);
+                    dataState.presets.splice(i, 1);
+                    saveData(); renderPresetManager();
+                });
+            });
+            host.querySelector('[data-role="add-preset"]')?.addEventListener('click', () => {
+                const row = host.querySelector('tr[data-idx="new"]');
+                const [s, t, r] = row.querySelectorAll('input.inline-input');
+                const col = row.querySelector('input.inline-color').value;
+                const subject = (s.value || '').trim();
+                if (!subject) return;
+                dataState.presets.push({ subject, teacher: t.value.trim(), room: r.value.trim(), color: col });
+                if (!dataState.subjects.includes(subject)) dataState.subjects.push(subject);
+                if (!dataState.subjectColors[subject]) dataState.subjectColors[subject] = col;
+                saveData(); renderPresetManager();
+            });
+        }
+
+        /* =================== FOLDERS (wie gehabt) =================== */
+        const foldersGrid = byId('foldersGrid'); const foldersEmpty = byId('foldersEmpty'); const dropzone = byId('dropzone'); const fileInput = byId('fileInput'); const newFolderBtn = byId('newFolderBtn'); const manageFoldersBtn = byId('manageFoldersBtn');
+        const folderEditModal = byId('folderEditModal'); const folderNameInput = byId('folderNameInput'); const folderColorInput = byId('folderColorInput'); const folderSaveBtn = byId('folderSaveBtn'); const folderDeleteBtn = byId('folderDeleteBtn');
+        const foldersManageModal = byId('foldersManageModal'); const manageList = byId('manageList');
+        const folderDetailModal = byId('folderDetailModal'); const folderDetailTitle = byId('folderDetailTitle'); const folderDetailGrid = byId('folderDetailGrid');
+        let editingFolderId = null;
+
+        function renderFolders() {
+            foldersGrid.innerHTML = ''; if (!folderState.folders.length) { foldersEmpty.hidden = false; return; } foldersEmpty.hidden = true;
+            folderState.folders.forEach(f => {
+                const card = div('folder-card');
+                const top = div('folder-top'); const shape = div('folder-shape'); shape.style.background = f.color || '#e2e8f0'; const tab = div('folder-tab'); shape.appendChild(tab);
+                const name = div('folder-name', f.name); const count = div('count-badge', `${f.items.length}`); const handle = div('drag-handle', '⋮⋮'); top.append(shape, name, count, handle); card.append(top);
+                const actions = div('folder-actions');
+                const openBtn = document.createElement('button'); openBtn.className = 'btn mini'; openBtn.textContent = 'Öffnen'; openBtn.addEventListener('click', () => openFolderDetail(f.id));
+                const editBtn = document.createElement('button'); editBtn.className = 'btn mini ghost'; editBtn.textContent = 'Bearbeiten'; editBtn.addEventListener('click', () => openFolderEdit(f.id));
+                actions.append(openBtn, editBtn); card.append(actions); foldersGrid.appendChild(card);
+            });
+        }
+        function openFolderEdit(id = null) {
+            editingFolderId = id; let name = '', color = colors[Math.floor(Math.random() * colors.length)];
+            if (id) { const f = folderState.folders.find(x => x.id === id); if (!f) return; name = f.name; color = f.color || color; }
+            folderNameInput.value = name; folderColorInput.value = color; folderDeleteBtn.style.display = id ? '' : 'none'; showModal(folderEditModal, '#folderNameInput');
+        }
+        folderSaveBtn.addEventListener('click', () => {
+            const name = (folderNameInput.value || '').trim() || 'Neuer Ordner'; const color = folderColorInput.value || '#e2e8f0';
+            if (editingFolderId) { const idx = folderState.folders.findIndex(f => f.id === editingFolderId); if (idx >= 0) folderState.folders[idx] = { ...folderState.folders[idx], name, color }; }
+            else folderState.folders.push({ id: uid(), name, color, items: [] });
+            saveFolders(); hideModal(folderEditModal); renderFolders();
+        });
+        folderDeleteBtn.addEventListener('click', () => { if (!editingFolderId) return; if (!confirm('Diesen Ordner wirklich löschen? Dateien darin werden verworfen.')) return; folderState.folders = folderState.folders.filter(f => f.id !== editingFolderId); saveFolders(); hideModal(folderEditModal); renderFolders(); });
+        newFolderBtn.addEventListener('click', () => openFolderEdit(null));
+        manageFoldersBtn.addEventListener('click', () => openFoldersManage());
+
+        function openFoldersManage() {
+            manageList.innerHTML = ''; if (!folderState.folders.length) { manageList.innerHTML = '<div class="small" style="padding:8px">Keine Ordner vorhanden.</div>'; }
+            else folderState.folders.forEach((f, idx) => {
+                const row = div('file-tile'); row.setAttribute('draggable', 'true'); row.dataset.index = String(idx); row.style.borderStyle = 'solid';
+                row.innerHTML = `<div><strong>⋮⋮ ${f.name}</strong></div><div class="small">${f.items.length} Elemente</div>`;
+                row.addEventListener('dragstart', e => { row.classList.add('dragging'); e.dataTransfer.setData('text/plain', row.dataset.index); });
+                row.addEventListener('dragend', () => row.classList.remove('dragging'));
+                row.addEventListener('dragover', e => e.preventDefault());
+                row.addEventListener('drop', e => { e.preventDefault(); const from = Number(e.dataTransfer.getData('text/plain')); const to = Number(row.dataset.index); if (Number.isNaN(from) || Number.isNaN(to) || from === to) return; const arr = [...folderState.folders]; const [moved] = arr.splice(from, 1); arr.splice(to, 0, moved); folderState.folders = arr; saveFolders(); openFoldersManage(); });
+                row.addEventListener('click', () => { hideModal(foldersManageModal); openFolderEdit(f.id); });
+                manageList.appendChild(row);
+            });
+            showModal(foldersManageModal, '.file-tile');
+        }
+        function openFolderDetail(id) {
+            const f = folderState.folders.find(x => x.id === id); if (!f) return; folderDetailTitle.textContent = `Ordner: ${f.name}`;
+            folderDetailGrid.innerHTML = ''; if (!f.items.length) { folderDetailGrid.innerHTML = '<div class="small">Keine Dateien in diesem Ordner.</div>'; }
+            else f.items.forEach(it => folderDetailGrid.appendChild(fileTile(it, () => { f.items = f.items.filter(x => x.id !== it.id); saveFolders(); openFolderDetail(id); renderFolders(); })));
+            showModal(folderDetailModal, '.btn.ghost');
+        }
+
+        /* Upload & analysis */
+        dropzone?.addEventListener('click', () => fileInput.click());
+        dropzone?.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('over'); });
+        dropzone?.addEventListener('dragleave', () => dropzone.classList.remove('over'));
+        dropzone?.addEventListener('drop', e => { e.preventDefault(); dropzone.classList.remove('over'); const files = [...(e.dataTransfer?.files || [])]; if (files.length) handleFiles(files); });
+        fileInput?.addEventListener('change', () => { const files = [...(fileInput.files || [])]; if (files.length) handleFiles(files); fileInput.value = ''; });
+
+        function extFromName(name) { const m = /\.([a-z0-9]+)$/i.exec(name); return m ? m[1].toLowerCase() : 'txt'; }
+        function fileTile(item, onRemove) {
+            const t = div('file-tile'); const ico = div('file-ico'); const ext = div('ext', item.ext.toUpperCase());
+            const name = div('file-name', item.name); const meta = div('file-meta', `${item.topic} • Note: ${item.grade}/100 • ${new Date(item.added).toLocaleString()}`);
+            const hueMap = { pdf: '#ef4444', doc: '#2563eb', docx: '#2563eb', ppt: '#d97706', pptx: '#d97706', xls: '#16a34a', xlsx: '#16a34a', md: '#0ea5e9', txt: '#64748b', json: '#10b981', js: '#f59e0b', ts: '#3b82f6', py: '#22c55e', cs: '#9333ea', java: '#ea580c' };
+            ico.style.background = (hueMap[item.ext] || '#eef2f7');
+            t.append(ico, ext, name, meta); const actions = div('tile-actions'); const del = document.createElement('button'); del.className = 'btn mini danger'; del.textContent = 'Entfernen'; del.addEventListener('click', onRemove); actions.append(del); t.append(actions); return t;
+        }
+        async function handleFiles(files) {
+            for (const file of files) {
+                const name = file.name; const ext = extFromName(name);
+                let text = ''; if (file.type?.startsWith('text/') || /\.(md|json|cs|py|js|ts|java|html|css)$/i.test(name)) { text = await file.text(); }
+                else if (/\.pdf$/i.test(name)) { text = '[PDF – Inhalt nicht analysiert]'; } else { text = '[Unbekannter Dateityp – rudimentär analysiert]'; }
+                const analysis = analyzeFileContent(text, name);
+                const folderId = ensureFolderForTopic(analysis.topic);
+                const item = { id: uid(), name, ext, topic: analysis.topic, grade: analysis.grade, notes: analysis.notes, added: new Date().toISOString() };
+                const f = folderState.folders.find(x => x.id === folderId); f.items.unshift(item);
+            }
+            saveFolders(); renderFolders(); alert('Dateien analysiert und einsortiert.');
+        }
+        function analyzeFileContent(text, filename) {
+            const lower = (text + ' ' + filename).toLowerCase();
+            const topics = [{ topic: 'Mathe', kws: ['mathe', 'algebra', 'geometrie', 'gleichung', 'funktion', 'statistik', 'integral', 'ableitung'] }, { topic: 'Deutsch', kws: ['deutsch', 'grammatik', 'gedicht', 'satz', 'analyse', 'interpretation', 'rechtschreibung'] }, { topic: 'Englisch', kws: ['englisch', 'english', 'grammar', 'essay', 'vocabulary'] }, { topic: 'Informatik', kws: ['informatik', 'programm', 'code', 'algorithmus', 'java', 'python', 'javascript', 'html', 'css', 'daten'] }, { topic: 'Biologie', kws: ['biologie', 'zelle', 'gen', 'dna', 'evolution', 'pflanze', 'tier'] }, { topic: 'Chemie', kws: ['chemie', 'reaktion', 'säure', 'base', 'molekül', 'atom', 'periodensystem'] }, { topic: 'Physik', kws: ['physik', 'kraft', 'energie', 'bewegung', 'spannung', 'strom', 'welle'] }, { topic: 'Geschichte', kws: ['geschichte', 'antik', 'mittelalter', 'krieg', 'revolution', 'historisch'] }, { topic: 'Geographie', kws: ['geographie', 'erde', 'klima', 'karte', 'kontinent', 'geologie'] }];
+            let best = { topic: 'Allgemein', score: 0 }; topics.forEach(t => { const hits = t.kws.reduce((a, kw) => a + (lower.includes(kw) ? 1 : 0), 0); if (hits > best.score) best = { topic: t.topic, score: hits }; });
+            let grade = 60; const rewards = [/\b\d{2,}\b/g, /#{1,6}\s\w+/g, /```[\s\S]*?```/g, /\b(formel|beweis|beispiel|definition)\b/gi, /\bquelle|referenz|literatur\b/gi];
+            const penalties = [/\b(stimmt nicht|falsch|fehler|unklar|widerspruch)\b/gi, /\?\?/g, /\b(lorem ipsum|platzhalter)\b/gi];
+            rewards.forEach(rx => { const m = lower.match(rx); if (m) grade += Math.min(10, m.length * 2); });
+            penalties.forEach(rx => { const m = lower.match(rx); if (m) grade -= Math.min(20, m.length * 4); });
+            grade = clamp(Math.round(grade), 1, 100);
+            const notes = `Erkannter Themenbereich: ${best.topic}. (Heuristische Bewertung – offline)`;
+            return { topic: best.topic, grade, notes };
+        }
+        function ensureFolderForTopic(topic) { let f = folderState.folders.find(x => x.name.toLowerCase() === topic.toLowerCase()); if (!f) { const color = colors[Math.floor(Math.random() * colors.length)]; f = { id: uid(), name: topic, color, items: [] }; folderState.folders.push(f); } return f.id; }
+
+        /* =================== SETTINGS (Section) =================== */
+        const daysInput = byId('daysInput'), periodMinInput = byId('periodMinInput'), periodCountInput = byId('periodCountInput'), breakMinInput = byId('breakMinInput');
+        byId('saveSettings').addEventListener('click', saveSettingsFromForm);
+        function saveSettingsFromForm() {
+            const parsedDays = daysInput.value.split(',').map(s => s.trim()).filter(Boolean);
+            state.days = parsedDays.length ? parsedDays : defaultDays;
+            state.periodMinutes = clamp(parseInt(periodMinInput.value || '45', 10), 15, 120);
+            state.periodCount = clamp(parseInt(periodCountInput.value || '10', 10), 4, 16);
+            state.breakMinutes = clamp(parseInt(breakMinInput.value || '0', 10), 0, 60);
+            savePlan(); renderGrid(); activatePill(byId('navPlan')); pagePlan.hidden = false; pageSettings.hidden = true;
+        }
+
+        /* =================== MODAL helpers =================== */
+        let lastActiveEl = null;
+        function showModal(modal, focusSel) { lastActiveEl = document.activeElement; modal.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden'; (focusSel && modal.querySelector(focusSel) || modal.querySelector('input,button,select,textarea,[tabindex]'))?.focus(); }
+        function hideModal(modal) { modal.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; if (lastActiveEl && lastActiveEl.focus) lastActiveEl.focus(); }
+        // Close modal only if the actual backdrop itself was clicked
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', e => {
+                // Only close if click target IS the modal element or its .backdrop
+                if (e.target === modal || e.target.classList.contains('backdrop')) {
+                    hideModal(modal);
+                }
+            });
+        });
+        document.querySelectorAll('[data-close]').forEach(btn => btn.addEventListener('click', () => { const m = btn.closest('.modal'); if (m) hideModal(m); }));
+        // esc + focus trap
+        function trapFocus(e) { const open = [byId('infoModal'), byId('editModal'), byId('foldersManageModal'), byId('folderEditModal'), byId('folderDetailModal')].find(m => m.getAttribute('aria-hidden') === 'false'); if (!open) return; const f = [...open.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter(el => !el.hasAttribute('disabled')); if (!f.length) return; const first = f[0], last = f[f.length - 1]; if (e.key === 'Tab') { if (e.shiftKey && document.activeElement === first) { last.focus(); e.preventDefault(); } else if (!e.shiftKey && document.activeElement === last) { first.focus(); e.preventDefault(); } } else if (e.key === 'Escape') { hideModal(open); } }
+        window.addEventListener('keydown', trapFocus);
+
+        /* =================== HELPERS / INIT =================== */
+        function div(cls, html) { const d = document.createElement('div'); if (cls) d.className = cls; if (html != null) d.innerHTML = html; return d; }
+
+        loadAll();
+        renderGrid(); renderCurrent(); renderTeacherSelect(); renderDataSidebar(); renderFolders(); renderOverview();
+
+        // ticker
+        setInterval(() => {
+            if (isResizing) {
+                renderCurrent();
+                if (redlineTip && !redlineTip.hidden) {
+                    redlineTip.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                }
+                return;
+            }
+
+            if (!pagePlan.hidden) {
+                renderGrid();
+                renderCurrent();
+            } else if (!pageOverview.hidden) {
+                renderOverview();
+                renderCurrent(); // die kleine Leiste unter der Pillbar bleibt aktuell
+            }
+
+            if (redlineTip && !redlineTip.hidden) {
+                redlineTip.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            }
+        }, 1000);
+
+        // --- Additions: helper to jump to tabs + make overview boxes clickable ---
+        const goTo = (which) => {
+            if (which === 'plan') byId('navPlan')?.click();
+            else if (which === 'folders') byId('navFolders')?.click();
+            else if (which === 'settings') byId('navSettings')?.click();
+            else byId('navOverview')?.click();
+        };
+
+        // after your existing renderOverview() definition runs, we (re)wire clicks each time:
+        const _renderOverviewOrig = window.renderOverview;
+        window.renderOverview = function () {
+            _renderOverviewOrig();
+            // Ordner-Badge im Hero: direkt zum Ordner
+            const folderBadge = byId('ovHeroFolder');
+            if (folderBadge) {
+                folderBadge.addEventListener('click', (e) => {
+                    e.stopPropagation(); // verhindert, dass der Hero zum Plan springt
+                    const fid = folderBadge.getAttribute('data-folder-id');
+                    if (!fid) return;
+                    // Ordner-Detail öffnen
+                    const f = folderState.folders.find(x => x.id === fid);
+                    if (f) { openFolderDetail(f.id); }
+                    // außerdem zur Folders-Seite wechseln
+                    byId('navFolders')?.click();
+                }, { once: false });
+            }
+
+            // Falls noch kein Ordner existiert: Anlegen-Button
+            const createBtn = byId('ovHeroCreateFolder');
+            if (createBtn) {
+                createBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // Fachname aus dem gerade/nächsten Lesson-Label ziehen
+                    const info = currentOrNextLesson();
+                    const subj = info && info.lesson ? (info.lesson.subject || 'Allgemein') : 'Allgemein';
+                    // neuen Ordner anlegen (Farbe aus Fachfarbe)
+                    const color = colorForSubject(subj);
+                    const f = { id: uid(), name: subj, color, items: [] };
+                    folderState.folders.unshift(f);
+                    saveFolders();
+                    renderFolders();
+                    // gleich öffnen
+                    byId('navFolders')?.click();
+                    openFolderDetail(f.id);
+                }, { once: true });
+            }
+
+            // click targets
+            byId('ovHeroBox')?.addEventListener('click', () => goTo('plan'), { once: false });
+            byId('kpiWeekBox')?.addEventListener('click', () => goTo('plan'), { once: false });
+            byId('kpiFreeBox')?.addEventListener('click', () => goTo('plan'), { once: false });
+            byId('kpiSubjectsBox')?.addEventListener('click', () => goTo('plan'), { once: false });
+            byId('kpiFolders')?.addEventListener('click', (e) => { e.stopPropagation(); goTo('folders'); }, { once: false });
+
+            byId('heatmapCard')?.addEventListener('click', () => goTo('plan'), { once: false });
+            byId('barSubjectsCard')?.addEventListener('click', () => goTo('plan'), { once: false });
+
+            byId('todayCard')?.addEventListener('click', () => goTo('plan'), { once: false });
+            byId('recentCard')?.addEventListener('click', () => goTo('folders'), { once: false });
+        };
+
+        // run once so the very first paint also has handlers
+        if (typeof window.renderOverview === 'function') {
+            window.renderOverview();
+        }
+        // smoke tests
+        (function () { console.log('%cSelf-tests…', 'font-weight:bold'); console.assert(timeLabelFromMinutes({ h: 8, m: 0 }, 45) === '08:45', 'timeLabelFromMinutes'); console.log('%cOK', 'color:green'); })();
+    </script>
+</body>
+
+</html>
